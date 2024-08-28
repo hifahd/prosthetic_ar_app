@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/prosthetic_config.dart';
+import 'prosthetic_3d_preview.dart';
 
 class CustomizeProstheticScreen extends StatefulWidget {
   final ProstheticConfig? config;
@@ -29,11 +30,19 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
       appBar: AppBar(
         title: Text(widget.config == null ? 'Customize Prosthetic' : 'Edit Prosthetic'),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Center(
+              child: Prosthetic3DPreview(
+                length: _length,
+                width: _width,
+                color: _color,
+              ),
+            ),
+            const SizedBox(height: 20),
             Text('Length: ${_length.toStringAsFixed(1)} cm', style: Theme.of(context).textTheme.titleMedium),
             Slider(
               value: _length,
@@ -67,22 +76,7 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
                 ColorButton(Colors.pink, _color == Colors.pink, () => _setColor(Colors.pink)),
               ],
             ),
-            const Spacer(),
-            Center(
-              child: Container(
-                width: _width * 10,
-                height: _length * 2,
-                color: _color,
-                child: Center(
-                  child: Text(
-                    'Prosthetic\nPreview',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              ),
-            ),
-            const Spacer(),
+            const SizedBox(height: 40),
             Center(
               child: ElevatedButton(
                 onPressed: _saveConfiguration,
