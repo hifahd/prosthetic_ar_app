@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'customize_prosthetic_screen.dart';
 import 'ar_view_screen.dart';
+import 'customize_prosthetic_screen.dart';
+import 'saved_configs_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -33,6 +34,16 @@ class HomeScreen extends StatelessWidget {
                 );
               },
               child: const Text('Customize Prosthetic'),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const SavedConfigsScreen()),
+                );
+              },
+              child: const Text('Saved Configurations'),
             ),
           ],
         ),
