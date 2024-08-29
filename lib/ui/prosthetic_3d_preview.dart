@@ -22,7 +22,7 @@ class Prosthetic3DPreview extends StatelessWidget {
       child: Cube(
         onSceneCreated: (Scene scene) {
           scene.world.add(Object(
-            fileName: 'assets/prosthetic_leg.obj',
+            fileName: 'assets/experiment.obj',
             scale: vector.Vector3(width / 10, length / 50, width / 10),
             position: vector.Vector3(0, 0, 0),
             rotation: vector.Vector3(0, 0, 0),

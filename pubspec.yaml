@@ -27,3 +27,4 @@ flutter:
     - assets/triangle.png
     - assets/prosthetic_leg.obj
     - assets/detailed_prosthetic_leg.obj
+    - assets/experiment.obj
