@@ -17,8 +17,8 @@ class Prosthetic3DPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 200,
-      height: 300,
+      width: 300,
+      height: 400,
       child: Cube(
         onSceneCreated: (Scene scene) {
           scene.world.add(Object(
@@ -31,7 +31,7 @@ class Prosthetic3DPreview extends StatelessWidget {
           scene.camera.zoom = 10;
           scene.camera.position.z = 15;
           scene.light.position.setFrom(vector.Vector3(0, 10, 10));
-          scene.world.rotation.setValues(0, 90, 0);
+          scene.world.rotation.setValues(-20, 30, 0);
           
           // Apply color to the object
           if (scene.world.children.isNotEmpty) {
