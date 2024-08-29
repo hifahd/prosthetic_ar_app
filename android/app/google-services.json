@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1000567185773",
+    "project_id": "prosthetic-ar-app",
+    "storage_bucket": "prosthetic-ar-app.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1000567185773:android:df957e4feea1676e4f7a64",
+        "android_client_info": {
+          "package_name": "com.example.prosthetic_ar_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAnywp7deq3i0bCZ6vDWN46FHJE9sgxNZI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
