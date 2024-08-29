@@ -17,23 +17,21 @@ class Prosthetic3DPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 300,
-      height: 400,
+      width: 200,
+      height: 300,
       child: Cube(
         onSceneCreated: (Scene scene) {
           scene.world.add(Object(
-            fileName: 'assets/detailed_prosthetic_leg.obj',
-            scale: vector.Vector3(width / 10, length / 70, width / 10),
-            position: vector.Vector3(0, -0.5, 0),
+            fileName: 'assets/prosthetic_leg.obj',
+            scale: vector.Vector3(width / 10, length / 50, width / 10),
+            position: vector.Vector3(0, 0, 0),
             rotation: vector.Vector3(0, 0, 0),
             lighting: true,
           ));
-          scene.camera.zoom = 8;
-          scene.camera.position.setValues(8, 5, 8);
-          scene.camera.target.setValues(0, 2, 0);
-          scene.light.setPosition(5, 5, 5);
-          scene.light.setColor(Colors.white);
-          scene.world.rotation.setValues(-20, 30, 0);
+          scene.camera.zoom = 10;
+          scene.camera.position.z = 15;
+          scene.light.position.setFrom(vector.Vector3(0, 10, 10));
+          scene.world.rotation.setValues(0, 90, 0);
           
           // Apply color to the object
           if (scene.world.children.isNotEmpty) {
@@ -46,8 +44,6 @@ class Prosthetic3DPreview extends StatelessWidget {
               );
               obj.mesh.material!.ambient = colorVector;
               obj.mesh.material!.diffuse = colorVector;
-              obj.mesh.material!.specular = vector.Vector3(1, 1, 1);
-              obj.mesh.material!.shininess = 50;
             }
           }
         },
