@@ -12,11 +12,10 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Prosthetic AR App'),
+        title: Text('Prosthetic AR'),
         actions: <Widget>[
-          TextButton.icon(
-            icon: Icon(Icons.person),
-            label: Text('Logout'),
+          IconButton(
+            icon: Icon(Icons.exit_to_app),
             onPressed: () async {
               await _auth.signOut();
               Navigator.pushReplacement(
@@ -27,41 +26,50 @@ class HomeScreen extends StatelessWidget {
           )
         ],
       ),
-      body: Center(
+      body: Padding(
+        padding: EdgeInsets.all(16.0),
         child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ARViewScreen()),
-                );
-              },
-              child: const Text('Start AR Session'),
+            Text(
+              'Welcome to Prosthetic AR',
+              style: Theme.of(context).textTheme.displayMedium,
+              textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const CustomizeProstheticScreen()),
-                );
-              },
-              child: const Text('Customize Prosthetic'),
+            SizedBox(height: 40),
+            _buildMenuButton(
+              context,
+              'Start AR Session',
+              Icons.camera,
+              () => Navigator.push(context, MaterialPageRoute(builder: (context) => ARViewScreen())),
             ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const SavedConfigsScreen()),
-                );
-              },
-              child: const Text('Saved Configurations'),
+            SizedBox(height: 20),
+            _buildMenuButton(
+              context,
+              'Customize Prosthetic',
+              Icons.edit,
+              () => Navigator.push(context, MaterialPageRoute(builder: (context) => CustomizeProstheticScreen())),
+            ),
+            SizedBox(height: 20),
+            _buildMenuButton(
+              context,
+              'Saved Configurations',
+              Icons.save,
+              () => Navigator.push(context, MaterialPageRoute(builder: (context) => SavedConfigsScreen())),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildMenuButton(BuildContext context, String title, IconData icon, VoidCallback onPressed) {
+    return ElevatedButton.icon(
+      icon: Icon(icon),
+      label: Text(title),
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        padding: EdgeInsets.symmetric(vertical: 16),
       ),
     );
   }

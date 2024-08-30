@@ -1,26 +1,26 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import 'register_screen.dart';
+import 'package:google_fonts/google_fonts.dart';
 
-class AuthScreen extends StatefulWidget {
+class RegisterScreen extends StatefulWidget {
   @override
-  _AuthScreenState createState() => _AuthScreenState();
+  _RegisterScreenState createState() => _RegisterScreenState();
 }
 
-class _AuthScreenState extends State<AuthScreen> {
+class _RegisterScreenState extends State<RegisterScreen> {
   final AuthService _auth = AuthService();
   final _formKey = GlobalKey<FormState>();
 
   String email = '';
   String password = '';
   String error = '';
-  bool isLoading = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Welcome'),
+        title: Text('Create an Account', style: GoogleFonts.poppins()),
+        backgroundColor: Theme.of(context).primaryColor,
       ),
       body: SingleChildScrollView(
         child: Padding(
@@ -30,18 +30,15 @@ class _AuthScreenState extends State<AuthScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: <Widget>[
-                SizedBox(height: 40),
-                Text(
-                  'Prosthetic AR',
-                  style: Theme.of(context).textTheme.displayLarge,
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 40),
                 TextFormField(
                   decoration: InputDecoration(
                     labelText: 'Email',
                     prefixIcon: Icon(Icons.email, color: Theme.of(context).primaryColor),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
+                  style: GoogleFonts.roboto(),
                   validator: (val) => val!.isEmpty ? 'Enter an email' : null,
                   onChanged: (val) => setState(() => email = val),
                 ),
@@ -50,23 +47,33 @@ class _AuthScreenState extends State<AuthScreen> {
                   decoration: InputDecoration(
                     labelText: 'Password',
                     prefixIcon: Icon(Icons.lock, color: Theme.of(context).primaryColor),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
+                  style: GoogleFonts.roboto(),
                   obscureText: true,
                   validator: (val) => val!.length < 6 ? 'Enter a password 6+ chars long' : null,
                   onChanged: (val) => setState(() => password = val),
                 ),
                 SizedBox(height: 30),
                 ElevatedButton(
-                  child: Text('Sign In'),
+                  child: Text('Register', style: GoogleFonts.poppins()),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
                   onPressed: () async {
                     if (_formKey.currentState!.validate()) {
-                      setState(() => isLoading = true);
-                      dynamic result = await _auth.signIn(email, password);
+                      dynamic result = await _auth.signUp(email, password);
                       if (result == null) {
-                        setState(() {
-                          error = 'Could not sign in with those credentials';
-                          isLoading = false;
-                        });
+                        setState(() => error = 'Registration failed. Please try again.');
+                      } else {
+                        Navigator.pop(context); // Go back to login screen
                       }
                     }
                   },
@@ -74,15 +81,8 @@ class _AuthScreenState extends State<AuthScreen> {
                 SizedBox(height: 12),
                 Text(
                   error,
-                  style: TextStyle(color: Colors.red, fontSize: 14.0),
+                  style: GoogleFonts.roboto(color: Colors.red, fontSize: 14.0),
                   textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 20),
-                OutlinedButton(
-                  child: Text('Create an account'),
-                  onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => RegisterScreen()));
-                  },
                 ),
               ],
             ),

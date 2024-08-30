@@ -3,12 +3,18 @@ import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'ui/home_screen.dart';
 import 'ui/auth_screen.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+    print('Firebase initialized successfully');
+  } catch (e) {
+    print('Failed to initialize Firebase: $e');
+  }
   runApp(const ProstheticARApp());
 }
 
@@ -20,10 +26,10 @@ class ProstheticARApp extends StatelessWidget {
     return MaterialApp(
       title: 'Prosthetic AR App',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primarySwatch: Colors.deepPurple,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: AuthScreen(), // Change this to AuthScreen
+      home: AuthScreen(),
     );
   }
 }
