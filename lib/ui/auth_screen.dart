@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'register_screen.dart';
+import 'home_screen.dart'; // Make sure to import your home screen
 
 class AuthScreen extends StatefulWidget {
   @override
@@ -57,14 +58,29 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
                 SizedBox(height: 30),
                 ElevatedButton(
-                  child: Text('Sign In'),
-                  onPressed: () async {
+                  child: isLoading
+                      ? CircularProgressIndicator(color: Colors.white)
+                      : Text('Sign In'),
+                  onPressed: isLoading ? null : () async {
                     if (_formKey.currentState!.validate()) {
                       setState(() => isLoading = true);
-                      dynamic result = await _auth.signIn(email, password);
-                      if (result == null) {
+                      try {
+                        dynamic result = await _auth.signIn(email, password);
+                        if (result != null) {
+                          // Navigate to home screen on successful sign in
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(builder: (context) => HomeScreen()),
+                          );
+                        } else {
+                          setState(() {
+                            error = 'Could not sign in with those credentials';
+                            isLoading = false;
+                          });
+                        }
+                      } catch (e) {
                         setState(() {
-                          error = 'Could not sign in with those credentials';
+                          error = 'An error occurred: ${e.toString()}';
                           isLoading = false;
                         });
                       }

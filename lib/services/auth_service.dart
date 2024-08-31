@@ -9,8 +9,11 @@ class AuthService {
       UserCredential result = await _auth.createUserWithEmailAndPassword(
           email: email, password: password);
       return result.user;
+    } on FirebaseAuthException catch (e) {
+      print('FirebaseAuthException during sign up: ${e.code} - ${e.message}');
+      return null;
     } catch (error) {
-      print(error.toString());
+      print('Error during sign up: $error');
       return null;
     }
   }
@@ -21,8 +24,11 @@ class AuthService {
       UserCredential result = await _auth.signInWithEmailAndPassword(
           email: email, password: password);
       return result.user;
+    } on FirebaseAuthException catch (e) {
+      print('FirebaseAuthException during sign in: ${e.code} - ${e.message}');
+      return null;
     } catch (error) {
-      print(error.toString());
+      print('Error during sign in: $error');
       return null;
     }
   }

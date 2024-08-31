@@ -13,7 +13,8 @@
   <title>prosthetic_ar_app</title>
   <link rel="manifest" href="manifest.json">
   <script>
-    var serviceWorkerVersion = null;
+    // The value below is injected by flutter build, do not touch.
+    const serviceWorkerVersion = null;
   </script>
   <script src="flutter.js" defer></script>
 </head>
@@ -34,14 +35,14 @@
   </script>
   <script>
     window.addEventListener('load', function(ev) {
+      // Download main.dart.js
       _flutter.loader.loadEntrypoint({
         serviceWorker: {
-          serviceWorkerVersion: serviceWorkerVersion,
+          serviceWorkerVersion: '{{flutter_service_worker_version}}',
         },
-        onEntrypointLoaded: function(engineInitializer) {
-          engineInitializer.initializeEngine().then(function(appRunner) {
-            appRunner.runApp();
-          });
+        onEntrypointLoaded: async function(engineInitializer) {
+          const appRunner = await engineInitializer.initializeEngine();
+          appRunner.runApp();
         }
       });
     });
