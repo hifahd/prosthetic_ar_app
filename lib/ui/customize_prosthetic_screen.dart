@@ -14,14 +14,19 @@ class CustomizeProstheticScreen extends StatefulWidget {
 class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
   late double _length;
   late double _width;
-  late Color _color;
+  String _currentModelPath = 'assets/experiment.obj'; // Default model path
+
+  final List<String> _modelPaths = [
+    'assets/experiment.obj',
+    // You can add other .obj files here if you want to switch between them
+  ];
 
   @override
   void initState() {
     super.initState();
     _length = widget.config?.length ?? 50;
     _width = widget.config?.width ?? 10;
-    _color = widget.config?.color ?? Colors.grey;
+    _currentModelPath = widget.config?.modelPath ?? _currentModelPath;
   }
 
   @override
@@ -37,10 +42,29 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
           children: [
             Center(
               child: Prosthetic3DPreview(
+                modelPath: _currentModelPath,
                 length: _length,
                 width: _width,
-                color: _color,
+                color: Colors.grey, // Default color
               ),
+            ),
+            const SizedBox(height: 20),
+            Text('Select Model:', style: Theme.of(context).textTheme.titleMedium),
+            DropdownButton<String>(
+              value: _currentModelPath,
+              items: _modelPaths.map((String path) {
+                return DropdownMenuItem<String>(
+                  value: path,
+                  child: Text(path.split('/').last),
+                );
+              }).toList(),
+              onChanged: (String? newValue) {
+                if (newValue != null) {
+                  setState(() {
+                    _currentModelPath = newValue;
+                  });
+                }
+              },
             ),
             const SizedBox(height: 20),
             Text('Length: ${_length.toStringAsFixed(1)} cm', style: Theme.of(context).textTheme.titleMedium),
@@ -66,16 +90,6 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
                 setState(() => _width = value);
               },
             ),
-            const SizedBox(height: 20),
-            Text('Color:', style: Theme.of(context).textTheme.titleMedium),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-              children: [
-                ColorButton(Colors.grey, _color == Colors.grey, () => _setColor(Colors.grey)),
-                ColorButton(Colors.brown, _color == Colors.brown, () => _setColor(Colors.brown)),
-                ColorButton(Colors.pink, _color == Colors.pink, () => _setColor(Colors.pink)),
-              ],
-            ),
             const SizedBox(height: 40),
             Center(
               child: ElevatedButton(
@@ -87,10 +101,6 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
         ),
       ),
     );
-  }
-
-  void _setColor(Color color) {
-    setState(() => _color = color);
   }
 
   void _saveConfiguration() async {
@@ -106,7 +116,8 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
       id: widget.config?.id ?? DateTime.now().toString(),
       length: _length,
       width: _width,
-      color: _color,
+      color: Colors.grey, // Default color
+      modelPath: _currentModelPath,
     );
 
     if (widget.config != null) {
@@ -127,32 +138,5 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
     );
 
     Navigator.pop(context);
-  }
-}
-
-class ColorButton extends StatelessWidget {
-  final Color color;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  const ColorButton(this.color, this.isSelected, this.onTap, {Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          border: Border.all(
-            color: isSelected ? Colors.black : Colors.transparent,
-            width: 3,
-          ),
-        ),
-      ),
-    );
   }
 }

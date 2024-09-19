@@ -6,12 +6,14 @@ class ProstheticConfig {
   final double length;
   final double width;
   final Color color;
+  final String modelPath;
 
   ProstheticConfig({
     required this.id,
     required this.length,
     required this.width,
     required this.color,
+    required this.modelPath,
   });
 
   Map<String, dynamic> toJson() => {
@@ -19,6 +21,7 @@ class ProstheticConfig {
     'length': length,
     'width': width,
     'color': color.value,
+    'modelPath': modelPath,
   };
 
   factory ProstheticConfig.fromJson(Map<String, dynamic> json) => ProstheticConfig(
@@ -26,6 +29,7 @@ class ProstheticConfig {
     length: json['length'],
     width: json['width'],
     color: Color(json['color']),
+    modelPath: json['modelPath'],
   );
 
   static String encode(List<ProstheticConfig> configs) => json.encode(
