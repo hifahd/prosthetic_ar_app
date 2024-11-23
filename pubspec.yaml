@@ -24,3 +24,10 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    - assets/triangle.png
+    - assets/prosthetic_leg.obj
+    - assets/detailed_prosthetic_leg.obj
+    - assets/experiment.obj
+    - assets/first.mtl
