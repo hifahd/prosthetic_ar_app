@@ -6,8 +6,11 @@ class AuthService {
   // Sign up with email and password
   Future<User?> signUp(String email, String password) async {
     try {
+      print("Doing the signup");
       UserCredential result = await _auth.createUserWithEmailAndPassword(
           email: email, password: password);
+      print(result.runtimeType);
+      print("Made it to here");
       return result.user;
     } on FirebaseAuthException catch (e) {
       print('FirebaseAuthException during sign up: ${e.code} - ${e.message}');

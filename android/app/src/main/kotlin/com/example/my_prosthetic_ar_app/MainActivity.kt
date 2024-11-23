@@ -1,4 +1,4 @@
-package com.example.prosthetic_ar_app
+package com.example.my_prosthetic_ar_app
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
@@ -24,7 +25,8 @@ class TriangleGenerator extends StatelessWidget {
   }
 
   void _saveTriangle(BuildContext context) async {
-    final RenderRepaintBoundary boundary = context.findRenderObject() as RenderRepaintBoundary;
+    final RenderRepaintBoundary boundary =
+        context.findRenderObject() as RenderRepaintBoundary;
     final image = await boundary.toImage(pixelRatio: 3.0);
     final byteData = await image.toByteData(format: ImageByteFormat.png);
     final buffer = byteData!.buffer.asUint8List();

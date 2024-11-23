@@ -46,12 +46,14 @@ class _SavedConfigsScreenState extends State<SavedConfigsScreen> {
               color: config.color,
             ),
             title: Text('Config ${index + 1}'),
-            subtitle: Text('Length: ${config.length.toStringAsFixed(1)} cm, Width: ${config.width.toStringAsFixed(1)} cm'),
+            subtitle: Text(
+                'Length: ${config.length.toStringAsFixed(1)} cm, Width: ${config.width.toStringAsFixed(1)} cm'),
             onTap: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => CustomizeProstheticScreen(config: config),
+                  builder: (context) =>
+                      CustomizeProstheticScreen(config: config),
                 ),
               ).then((_) => _loadConfigs());
             },

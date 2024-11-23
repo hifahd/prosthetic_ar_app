@@ -8,7 +8,8 @@ class CustomizeProstheticScreen extends StatefulWidget {
   const CustomizeProstheticScreen({Key? key, this.config}) : super(key: key);
 
   @override
-  _CustomizeProstheticScreenState createState() => _CustomizeProstheticScreenState();
+  _CustomizeProstheticScreenState createState() =>
+      _CustomizeProstheticScreenState();
 }
 
 class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
@@ -33,7 +34,8 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.config == null ? 'Customize Prosthetic' : 'Edit Prosthetic'),
+        title: Text(
+            widget.config == null ? 'Customize Prosthetic' : 'Edit Prosthetic'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
@@ -49,7 +51,8 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            Text('Select Model:', style: Theme.of(context).textTheme.titleMedium),
+            Text('Select Model:',
+                style: Theme.of(context).textTheme.titleMedium),
             DropdownButton<String>(
               value: _currentModelPath,
               items: _modelPaths.map((String path) {
@@ -67,7 +70,8 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
               },
             ),
             const SizedBox(height: 20),
-            Text('Length: ${_length.toStringAsFixed(1)} cm', style: Theme.of(context).textTheme.titleMedium),
+            Text('Length: ${_length.toStringAsFixed(1)} cm',
+                style: Theme.of(context).textTheme.titleMedium),
             Slider(
               value: _length,
               min: 30,
@@ -79,7 +83,8 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
               },
             ),
             const SizedBox(height: 20),
-            Text('Width: ${_width.toStringAsFixed(1)} cm', style: Theme.of(context).textTheme.titleMedium),
+            Text('Width: ${_width.toStringAsFixed(1)} cm',
+                style: Theme.of(context).textTheme.titleMedium),
             Slider(
               value: _width,
               min: 5,
@@ -94,7 +99,9 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
             Center(
               child: ElevatedButton(
                 onPressed: _saveConfiguration,
-                child: Text(widget.config == null ? 'Save Configuration' : 'Update Configuration'),
+                child: Text(widget.config == null
+                    ? 'Save Configuration'
+                    : 'Update Configuration'),
               ),
             ),
           ],
@@ -106,7 +113,7 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
   void _saveConfiguration() async {
     final prefs = await SharedPreferences.getInstance();
     final String? savedConfigs = prefs.getString('prosthetic_configs');
-    
+
     List<ProstheticConfig> configs = [];
     if (savedConfigs != null) {
       configs = ProstheticConfig.decode(savedConfigs);
@@ -122,7 +129,8 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
 
     if (widget.config != null) {
       // Update existing config
-      final index = configs.indexWhere((config) => config.id == widget.config!.id);
+      final index =
+          configs.indexWhere((config) => config.id == widget.config!.id);
       if (index != -1) {
         configs[index] = newConfig;
       }
@@ -131,10 +139,14 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
       configs.add(newConfig);
     }
 
-    await prefs.setString('prosthetic_configs', ProstheticConfig.encode(configs));
+    await prefs.setString(
+        'prosthetic_configs', ProstheticConfig.encode(configs));
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(widget.config == null ? 'Configuration saved!' : 'Configuration updated!')),
+      SnackBar(
+          content: Text(widget.config == null
+              ? 'Configuration saved!'
+              : 'Configuration updated!')),
     );
 
     Navigator.pop(context);

@@ -1,4 +1,4 @@
-# prosthetic_ar_app
+# my_prosthetic_ar_app
 
 A new Flutter project.
 

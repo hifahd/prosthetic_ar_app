@@ -2,8 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/prosthetic_ar_app.iml" filepath="$PROJECT_DIR$/prosthetic_ar_app.iml" />
-      <module fileurl="file://$PROJECT_DIR$/android/prosthetic_ar_app_android.iml" filepath="$PROJECT_DIR$/android/prosthetic_ar_app_android.iml" />
+      <module fileurl="file://$PROJECT_DIR$/my_prosthetic_ar_app.iml" filepath="$PROJECT_DIR$/my_prosthetic_ar_app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/android/my_prosthetic_ar_app_android.iml" filepath="$PROJECT_DIR$/android/my_prosthetic_ar_app_android.iml" />
     </modules>
   </component>
 </project>

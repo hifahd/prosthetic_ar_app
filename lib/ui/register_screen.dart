@@ -33,7 +33,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextFormField(
                   decoration: InputDecoration(
                     labelText: 'Email',
-                    prefixIcon: Icon(Icons.email, color: Theme.of(context).primaryColor),
+                    prefixIcon: Icon(Icons.email,
+                        color: Theme.of(context).primaryColor),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -46,14 +47,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 TextFormField(
                   decoration: InputDecoration(
                     labelText: 'Password',
-                    prefixIcon: Icon(Icons.lock, color: Theme.of(context).primaryColor),
+                    prefixIcon:
+                        Icon(Icons.lock, color: Theme.of(context).primaryColor),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
                   style: GoogleFonts.roboto(),
                   obscureText: true,
-                  validator: (val) => val!.length < 6 ? 'Enter a password 6+ chars long' : null,
+                  validator: (val) =>
+                      val!.length < 6 ? 'Enter a password 6+ chars long' : null,
                   onChanged: (val) => setState(() => password = val),
                 ),
                 SizedBox(height: 30),
@@ -71,7 +74,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     if (_formKey.currentState!.validate()) {
                       dynamic result = await _auth.signUp(email, password);
                       if (result == null) {
-                        setState(() => error = 'Registration failed. Please try again.');
+                        setState(() =>
+                            error = 'Registration failed. Please try again.');
                       } else {
                         Navigator.pop(context); // Go back to login screen
                       }
