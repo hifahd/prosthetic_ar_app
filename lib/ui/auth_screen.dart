@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'register_screen.dart';
-import 'home_screen.dart'; // Make sure to import your home screen
+import 'home_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   @override

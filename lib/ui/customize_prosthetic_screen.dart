@@ -18,7 +18,7 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
 
   final List<String> _modelPaths = [
     'assets/experiment.obj',
-    // You can add other .obj files here if you want to switch between them
+    
   ];
 
   @override
