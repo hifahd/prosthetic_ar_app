@@ -7,24 +7,27 @@ void main() {
 }
 
 class TriangleGenerator extends StatelessWidget {
+  const TriangleGenerator({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Center(
         child: CustomPaint(
-          size: Size(100, 100),
+          size: const Size(100, 100),
           painter: TrianglePainter(),
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        child: Icon(Icons.save),
+        child: const Icon(Icons.save),
         onPressed: () => _saveTriangle(context),
       ),
     );
   }
 
   void _saveTriangle(BuildContext context) async {
-    final RenderRepaintBoundary boundary = context.findRenderObject() as RenderRepaintBoundary;
+    final RenderRepaintBoundary boundary =
+        context.findRenderObject() as RenderRepaintBoundary;
     final image = await boundary.toImage(pixelRatio: 3.0);
     final byteData = await image.toByteData(format: ImageByteFormat.png);
     final buffer = byteData!.buffer.asUint8List();
