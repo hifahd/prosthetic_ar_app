@@ -38,10 +38,12 @@ class _ARViewScreenState extends State<ARViewScreen> {
                     src: currentModel,
                     alt: 'A 3D model of a prosthetic',
                     ar: true,
-                    arModes: const ['scene-viewer'],
                     autoRotate: true,
                     cameraControls: true,
                     disableZoom: false,
+                    exposure: 0.5,
+                    shadowIntensity: 1,
+                    loading: Loading.eager,
                   )
                 : const Center(
                     child: Text('Model hidden. Tap the eye icon to show.'),
