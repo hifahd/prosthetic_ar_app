@@ -3,6 +3,7 @@ import '../services/auth_service.dart';
 import 'ar_view_screen.dart';
 import 'customize_prosthetic_screen.dart';
 import 'saved_configs_screen.dart';
+import 'help_screen.dart'; // Added import for Help Screen
 import 'auth_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -102,14 +103,10 @@ class HomeScreen extends StatelessWidget {
                       'Help',
                       Icons.help_outline,
                       'View tutorial and guides',
-                      () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Help section coming soon'),
-                            behavior: SnackBarBehavior.floating,
-                          ),
-                        );
-                      },
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => HelpScreen()),
+                      ),
                     ),
                   ],
                 ),

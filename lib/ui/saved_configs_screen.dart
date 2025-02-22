@@ -86,28 +86,6 @@ class _SavedConfigsScreenState extends State<SavedConfigsScreen> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Saved Configurations'),
-        actions: [
-          if (_configs.isNotEmpty)
-            IconButton(
-              icon: Icon(Icons.add),
-              onPressed: () => _navigateToCustomize(),
-              tooltip: 'Create new configuration',
-            ),
-        ],
-      ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator())
-          : _configs.isEmpty
-              ? _buildEmptyState()
-              : _buildConfigList(),
-    );
-  }
-
   Widget _buildEmptyState() {
     return Center(
       child: Column(
@@ -129,12 +107,18 @@ class _SavedConfigsScreenState extends State<SavedConfigsScreen> {
             style: TextStyle(color: Colors.grey[600]),
           ),
           SizedBox(height: 24),
-          ElevatedButton.icon(
-            onPressed: () => _navigateToCustomize(),
-            icon: Icon(Icons.add),
-            label: Text('Create New Configuration'),
-            style: ElevatedButton.styleFrom(
-              padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+          SizedBox(
+            width: 240, // Fixed width for better button sizing
+            child: ElevatedButton.icon(
+              onPressed: () => _navigateToCustomize(),
+              icon: Icon(Icons.add),
+              label: Text('Create New Configuration'),
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
           ),
         ],
@@ -291,5 +275,27 @@ class _SavedConfigsScreenState extends State<SavedConfigsScreen> {
         builder: (context) => CustomizeProstheticScreen(config: config),
       ),
     ).then((_) => _loadConfigs());
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Saved Configurations'),
+        actions: [
+          if (_configs.isNotEmpty)
+            IconButton(
+              icon: Icon(Icons.add),
+              onPressed: () => _navigateToCustomize(),
+              tooltip: 'Create new configuration',
+            ),
+        ],
+      ),
+      body: _isLoading
+          ? Center(child: CircularProgressIndicator())
+          : _configs.isEmpty
+              ? _buildEmptyState()
+              : _buildConfigList(),
+    );
   }
 }
