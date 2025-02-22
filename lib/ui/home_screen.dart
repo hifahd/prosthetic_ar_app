@@ -3,7 +3,8 @@ import '../services/auth_service.dart';
 import 'ar_view_screen.dart';
 import 'customize_prosthetic_screen.dart';
 import 'saved_configs_screen.dart';
-import 'help_screen.dart'; // Added import for Help Screen
+import 'help_screen.dart';
+import 'auto_measure_screen.dart'; // Added import for Auto Measure
 import 'auth_screen.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -96,6 +97,17 @@ class HomeScreen extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                             builder: (context) => SavedConfigsScreen()),
+                      ),
+                    ),
+                    _buildOptionCard(
+                      context,
+                      'Auto Measure',
+                      Icons.straighten,
+                      'AI-powered automatic measurements',
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => AutoMeasureScreen()),
                       ),
                     ),
                     _buildOptionCard(
