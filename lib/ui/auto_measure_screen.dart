@@ -5,6 +5,8 @@ import 'dart:io';
 import 'dart:convert';
 import '../models/prosthetic_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'camera_overlay.dart';
+import 'measurement_overlay.dart';
 
 class AutoMeasureScreen extends StatefulWidget {
   const AutoMeasureScreen({Key? key}) : super(key: key);
@@ -13,24 +15,73 @@ class AutoMeasureScreen extends StatefulWidget {
   _AutoMeasureScreenState createState() => _AutoMeasureScreenState();
 }
 
-class _AutoMeasureScreenState extends State<AutoMeasureScreen> {
+class _AutoMeasureScreenState extends State<AutoMeasureScreen>
+    with SingleTickerProviderStateMixin {
   bool _isLoading = false;
   String _status = '';
   File? _imageFile;
   Map<String, dynamic>? _measurements;
   final ImagePicker _picker = ImagePicker();
+  bool _showGuide = true;
+  bool _showOverlay = true;
+  bool _showMeasurements = true;
+  late AnimationController _fadeController;
+  late Animation<double> _fadeAnimation;
+  Size? _imageSize;
 
-  // TODO: Replace with your actual backend URL
   final String backendUrl = 'http://192.168.1.6:8000/analyze/image';
 
+  @override
+  void initState() {
+    super.initState();
+    _fadeController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+    _fadeAnimation =
+        Tween<double>(begin: 0.0, end: 1.0).animate(_fadeController);
+    _fadeController.forward();
+  }
+
+  @override
+  void dispose() {
+    _fadeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _getImageSize(File image) async {
+    final decodedImage = await decodeImageFromList(await image.readAsBytes());
+    setState(() {
+      _imageSize =
+          Size(decodedImage.width.toDouble(), decodedImage.height.toDouble());
+    });
+  }
+
   Future<void> _takePicture() async {
-    final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
+    setState(() => _showOverlay = false);
+    await Future.delayed(Duration(milliseconds: 100));
+
+    final XFile? photo = await _picker.pickImage(
+      source: ImageSource.camera,
+      maxWidth: 1800,
+      maxHeight: 1800,
+      imageQuality: 95,
+      preferredCameraDevice: CameraDevice.front,
+    );
+
+    setState(() => _showOverlay = true);
+
     if (photo != null) {
+      final imageFile = File(photo.path);
+      await _getImageSize(imageFile);
+
       setState(() {
-        _imageFile = File(photo.path);
+        _imageFile = imageFile;
         _status = 'Analyzing image...';
         _isLoading = true;
+        _showMeasurements = true;
       });
+
       await _analyzePicture();
     }
   }
@@ -39,14 +90,10 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen> {
     try {
       if (_imageFile == null) return;
 
-      // Create multipart request
       var request = http.MultipartRequest('POST', Uri.parse(backendUrl));
-      request.files.add(await http.MultipartFile.fromPath(
-        'file',
-        _imageFile!.path,
-      ));
+      request.files
+          .add(await http.MultipartFile.fromPath('file', _imageFile!.path));
 
-      // Send request
       var response = await request.send();
       var responseData = await response.stream.bytesToString();
       var result = json.decode(responseData);
@@ -58,9 +105,10 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen> {
           _status = 'Analysis complete';
         });
 
-        // If measurements are found, create a new configuration
         if (result['missing_limbs'].isNotEmpty) {
-          _createConfiguration(result['missing_limbs'][0]);
+          _showMeasurementResults(result['missing_limbs'][0]);
+        } else {
+          _showNoLimbsDetectedDialog();
         }
       } else {
         setState(() {
@@ -73,7 +121,294 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen> {
         _isLoading = false;
         _status = 'Error: $e';
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Connection error. Make sure the server is running.'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 5),
+          action: SnackBarAction(
+            label: 'Retry',
+            onPressed: _analyzePicture,
+            textColor: Colors.white,
+          ),
+        ),
+      );
     }
+  }
+
+  Widget _buildAnalyzedImage() {
+    if (_imageFile == null || _imageSize == null) return Container();
+
+    return Stack(
+      children: [
+        Image.file(_imageFile!),
+        if (_showMeasurements &&
+            _measurements != null &&
+            _measurements!['missing_limbs'].isNotEmpty)
+          Positioned.fill(
+            child: CustomPaint(
+              painter: MeasurementOverlay(
+                measurements: _measurements!['missing_limbs'][0],
+                imageSize: _imageSize!,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildConfidenceIndicator(double confidence) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Detection Confidence',
+          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+        ),
+        SizedBox(height: 4),
+        LinearProgressIndicator(
+          value: confidence,
+          backgroundColor: Colors.grey[200],
+          valueColor: AlwaysStoppedAnimation<Color>(
+            confidence > 0.7
+                ? Colors.green
+                : confidence > 0.5
+                    ? Colors.orange
+                    : Colors.red,
+          ),
+        ),
+        SizedBox(height: 2),
+        Text(
+          '${(confidence * 100).toStringAsFixed(1)}%',
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showNoLimbsDetectedDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('No Missing Limbs Detected'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Make sure:'),
+            SizedBox(height: 8),
+            Padding(
+              padding: EdgeInsets.only(left: 8),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('• You are standing in a well-lit area'),
+                  Text('• Your full body is clearly visible'),
+                  Text('• You are aligned with the guide outline'),
+                  Text('• The missing limb is visible in the frame'),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              setState(() {
+                _imageFile = null;
+                _showOverlay = true;
+              });
+            },
+            child: Text('Try Again'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMeasurementRow(String label, String value, IconData icon) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 20, color: Colors.grey[600]),
+          SizedBox(width: 12),
+          Text(
+            label,
+            style: TextStyle(color: Colors.grey[600]),
+          ),
+          Spacer(),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showMeasurementResults(Map<String, dynamic> measurements) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        builder: (context, scrollController) => Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  border: Border(bottom: BorderSide(color: Colors.grey[200]!)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Measurement Results',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                    Row(
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            _showMeasurements
+                                ? Icons.visibility
+                                : Icons.visibility_off,
+                            color: Theme.of(context).primaryColor,
+                          ),
+                          onPressed: () => setState(
+                              () => _showMeasurements = !_showMeasurements),
+                          tooltip:
+                              '${_showMeasurements ? 'Hide' : 'Show'} measurements',
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.close),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  controller: scrollController,
+                  padding: EdgeInsets.all(16),
+                  children: [
+                    Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.accessibility_new,
+                                    color: Theme.of(context).primaryColor),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Detected ${measurements['limb_type'].toString().replaceAll('_', ' ')}',
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleMedium,
+                                      ),
+                                      SizedBox(height: 8),
+                                      _buildConfidenceIndicator(
+                                          measurements['confidence']),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Divider(height: 24),
+                            _buildMeasurementRow(
+                              'Length',
+                              '${measurements['recommended_size']['length'].toStringAsFixed(1)} cm',
+                              Icons.height,
+                            ),
+                            _buildMeasurementRow(
+                              'Width',
+                              '${measurements['recommended_size']['width'].toStringAsFixed(1)} cm',
+                              Icons.width_normal,
+                            ),
+                            _buildMeasurementRow(
+                              'Circumference',
+                              '${measurements['recommended_size']['circumference'].toStringAsFixed(1)} cm',
+                              Icons.radio_button_unchecked,
+                            ),
+                            if (measurements['distances'] != null) ...[
+                              Divider(height: 24),
+                              Text(
+                                'Measured Distances',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).primaryColor,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              ...List.generate(
+                                measurements['distances'].length,
+                                (index) => _buildMeasurementRow(
+                                  'Distance ${index + 1}',
+                                  '${measurements['distances'][index].toStringAsFixed(1)} cm',
+                                  Icons.straighten,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: () => _createConfiguration(measurements),
+                      icon: Icon(Icons.add),
+                      label: Text('Create Configuration'),
+                      style: ElevatedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                      ),
+                    ),
+                    SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(context);
+                        setState(() {
+                          _imageFile = null;
+                          _showOverlay = true;
+                        });
+                      },
+                      icon: Icon(Icons.camera_alt),
+                      label: Text('Take Another Picture'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Future<void> _createConfiguration(Map<String, dynamic> measurements) async {
@@ -103,15 +438,15 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen> {
       await prefs.setString(
           'prosthetic_configs', ProstheticConfig.encode(configs));
 
+      Navigator.of(context).pop(); // Close bottom sheet
+      Navigator.of(context).pop(); // Return to previous screen
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Configuration created from measurements'),
+          content: Text('Configuration created successfully'),
           behavior: SnackBarBehavior.floating,
         ),
       );
-
-      // Navigate back to AR view with new configuration
-      Navigator.pop(context);
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -123,107 +458,135 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen> {
     }
   }
 
+  Widget _buildGuide() {
+    return FadeTransition(
+      opacity: _fadeAnimation,
+      child: Card(
+        margin: EdgeInsets.all(16),
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'How to Take the Picture',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
+              SizedBox(height: 16),
+              ListTile(
+                leading: Icon(Icons.accessibility_new),
+                title: Text('Align with Guide'),
+                subtitle: Text('Match your position to the outline'),
+              ),
+              ListTile(
+                leading: Icon(Icons.wb_sunny),
+                title: Text('Good Lighting'),
+                subtitle: Text('Ensure the area is well lit'),
+              ),
+              ListTile(
+                leading: Icon(Icons.person),
+                title: Text('Clear View'),
+                subtitle: Text('Keep arms slightly away from body'),
+              ),
+              ListTile(
+                leading: Icon(Icons.contrast),
+                title: Text('Background'),
+                subtitle: Text('Use a plain, contrasting background'),
+              ),
+              SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => setState(() => _showGuide = false),
+                child: Text('Got it'),
+                style: ElevatedButton.styleFrom(
+                  minimumSize: Size(double.infinity, 45),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('Auto Measurements'),
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: Container(
-              padding: EdgeInsets.all(16),
-              child: _imageFile == null
-                  ? Center(
-                      child: Text(
-                        'Take a picture to start automatic measurements',
-                        textAlign: TextAlign.center,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(
-                          child: Image.file(
-                            _imageFile!,
-                            fit: BoxFit.contain,
-                          ),
-                        ),
-                        if (_measurements != null) ...[
-                          SizedBox(height: 16),
-                          Text(
-                            'Detected Measurements:',
-                            style: Theme.of(context).textTheme.titleMedium,
-                          ),
-                          SizedBox(height: 8),
-                          // Display measurements
-                          ...(_measurements!['missing_limbs'] as List).map(
-                            (limb) => Card(
-                              child: Padding(
-                                padding: EdgeInsets.all(16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      'Missing Limb: ${limb['limb_type']}',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleSmall,
-                                    ),
-                                    SizedBox(height: 8),
-                                    Text(
-                                      'Recommended Size:',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                    Text(
-                                        'Length: ${limb['recommended_size']['length'].toStringAsFixed(1)} cm'),
-                                    Text(
-                                        'Width: ${limb['recommended_size']['width'].toStringAsFixed(1)} cm'),
-                                    Text(
-                                        'Circumference: ${limb['recommended_size']['circumference'].toStringAsFixed(1)} cm'),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
+        actions: [
+          if (!_showGuide)
+            IconButton(
+              icon: Icon(Icons.help_outline),
+              onPressed: () => setState(() => _showGuide = true),
             ),
-          ),
-          if (_isLoading)
-            Container(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 8),
-                  Text(_status),
-                ],
-              ),
-            ),
-          SafeArea(
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: _isLoading ? null : _takePicture,
-                      icon: Icon(Icons.camera_alt),
-                      label: Text('Take Picture'),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
         ],
       ),
+      body: Stack(
+        children: [
+          // Main Content
+          _showGuide
+              ? Center(child: _buildGuide())
+              : Stack(
+                  children: [
+                    Center(
+                      child: _imageFile == null
+                          ? Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.camera_alt_outlined,
+                                  size: 64,
+                                  color: Colors.grey[400],
+                                ),
+                                SizedBox(height: 16),
+                                Text(
+                                  'Take a picture to start measurements',
+                                  style: TextStyle(color: Colors.grey[600]),
+                                ),
+                              ],
+                            )
+                          : _buildAnalyzedImage(),
+                    ),
+                    if (_showOverlay && _imageFile == null)
+                      IgnorePointer(
+                        child: CustomPaint(
+                          painter: CameraOverlay(),
+                          size: Size(
+                            MediaQuery.of(context).size.width,
+                            MediaQuery.of(context).size.height,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+
+          // Loading Overlay
+          if (_isLoading)
+            Container(
+              color: Colors.black54,
+              child: Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(color: Colors.white),
+                    SizedBox(height: 16),
+                    Text(
+                      _status,
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+      floatingActionButton: !_showGuide
+          ? FloatingActionButton.extended(
+              onPressed: _takePicture,
+              icon: Icon(Icons.camera_alt),
+              label: Text('Take Picture'),
+            )
+          : null,
     );
   }
 }
