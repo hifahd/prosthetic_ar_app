@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/prosthetic_config.dart';
+import '../theme/app_theme.dart';
 import 'prosthetic_3d_preview.dart';
+import '../widgets/custom_bottom_nav.dart';
 
 class CustomizeProstheticScreen extends StatefulWidget {
-  final ProstheticConfig? config;
-  const CustomizeProstheticScreen({Key? key, this.config}) : super(key: key);
+  final ProstheticConfig? initialConfig;
+  const CustomizeProstheticScreen({Key? key, this.initialConfig}) : super(key: key);
 
   @override
-  _CustomizeProstheticScreenState createState() =>
-      _CustomizeProstheticScreenState();
+  _CustomizeProstheticScreenState createState() => _CustomizeProstheticScreenState();
 }
 
 class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
@@ -23,6 +24,7 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
   String _currentModelPath = 'assets/experiment.obj';
   bool _isExpanded = false;
   bool _isSaving = false;
+  int _currentNavIndex = 0;
 
   final List<String> _modelPaths = [
     'assets/experiment.obj',
@@ -53,335 +55,14 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
   }
 
   void _initializeValues() {
-    _length = widget.config?.length ?? 50;
-    _width = widget.config?.width ?? 10;
-    _circumferenceTop = widget.config?.circumferenceTop ?? 30;
-    _circumferenceBottom = widget.config?.circumferenceBottom ?? 25;
-    _kneeFlexion = widget.config?.kneeFlexion ?? 0;
-    _mainColor = widget.config?.color ?? Colors.grey[600]!;
-    _material = widget.config?.material ?? 'Titanium';
-    _currentModelPath = widget.config?.modelPath ?? _currentModelPath;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.config == null
-            ? 'Create New Prosthetic'
-            : 'Edit Prosthetic'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.save),
-            onPressed: _isSaving ? null : _saveConfiguration,
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // 3D Preview Section
-            Container(
-              height: MediaQuery.of(context).size.height * 0.35,
-              padding: EdgeInsets.all(16),
-              child: Card(
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Prosthetic3DPreview(
-                    modelPath: _currentModelPath,
-                    length: _length,
-                    width: _width,
-                    color: _mainColor,
-                  ),
-                ),
-              ),
-            ),
-
-            // Customization Controls
-            Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    // Model Selection
-                    Card(
-                      margin: EdgeInsets.symmetric(vertical: 8),
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Model Selection',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                            SizedBox(height: 8),
-                            DropdownButtonFormField<String>(
-                              value: _currentModelPath,
-                              decoration: InputDecoration(
-                                border: OutlineInputBorder(),
-                                contentPadding:
-                                    EdgeInsets.symmetric(horizontal: 16),
-                              ),
-                              items: _modelPaths.map((String path) {
-                                return DropdownMenuItem<String>(
-                                  value: path,
-                                  child: Text(path.split('/').last),
-                                );
-                              }).toList(),
-                              onChanged: (String? newValue) {
-                                if (newValue != null) {
-                                  setState(() => _currentModelPath = newValue);
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // Basic Measurements
-                    Card(
-                      margin: EdgeInsets.symmetric(vertical: 8),
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Basic Measurements',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                            SizedBox(height: 16),
-                            _buildSlider(
-                              'Length',
-                              _length,
-                              30,
-                              70,
-                              (value) => setState(() => _length = value),
-                              'cm',
-                            ),
-                            _buildSlider(
-                              'Width',
-                              _width,
-                              5,
-                              15,
-                              (value) => setState(() => _width = value),
-                              'cm',
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // Detailed Measurements
-                    Card(
-                      margin: EdgeInsets.symmetric(vertical: 8),
-                      child: ExpansionTile(
-                        title: Text(
-                          'Detailed Measurements',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                        ),
-                        children: [
-                          Padding(
-                            padding: EdgeInsets.all(16),
-                            child: Column(
-                              children: [
-                                _buildSlider(
-                                  'Top Circumference',
-                                  _circumferenceTop,
-                                  20,
-                                  50,
-                                  (value) =>
-                                      setState(() => _circumferenceTop = value),
-                                  'cm',
-                                ),
-                                _buildSlider(
-                                  'Bottom Circumference',
-                                  _circumferenceBottom,
-                                  15,
-                                  40,
-                                  (value) => setState(
-                                      () => _circumferenceBottom = value),
-                                  'cm',
-                                ),
-                                _buildSlider(
-                                  'Knee Flexion',
-                                  _kneeFlexion,
-                                  0,
-                                  120,
-                                  (value) =>
-                                      setState(() => _kneeFlexion = value),
-                                  '°',
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // Material Selection
-                    Card(
-                      margin: EdgeInsets.symmetric(vertical: 8),
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Material',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                            SizedBox(height: 8),
-                            DropdownButtonFormField<String>(
-                              value: _material,
-                              decoration: InputDecoration(
-                                border: OutlineInputBorder(),
-                                contentPadding:
-                                    EdgeInsets.symmetric(horizontal: 16),
-                              ),
-                              items: _materials.map((String material) {
-                                return DropdownMenuItem<String>(
-                                  value: material,
-                                  child: Text(material),
-                                );
-                              }).toList(),
-                              onChanged: (String? newValue) {
-                                if (newValue != null) {
-                                  setState(() => _material = newValue);
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    // Color Selection
-                    Card(
-                      margin: EdgeInsets.symmetric(vertical: 8),
-                      child: Padding(
-                        padding: EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Color',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                            ),
-                            SizedBox(height: 16),
-                            Wrap(
-                              spacing: 12,
-                              runSpacing: 12,
-                              children: _colorOptions.map((Color color) {
-                                return GestureDetector(
-                                  onTap: () =>
-                                      setState(() => _mainColor = color),
-                                  child: Container(
-                                    width: 48,
-                                    height: 48,
-                                    decoration: BoxDecoration(
-                                      color: color,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
-                                        color: _mainColor == color
-                                            ? Theme.of(context).primaryColor
-                                            : Colors.transparent,
-                                        width: 3,
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.1),
-                                          blurRadius: 4,
-                                          offset: Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    SizedBox(height: 16),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSlider(
-    String label,
-    double value,
-    double min,
-    double max,
-    ValueChanged<double> onChanged,
-    String unit,
-  ) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(label),
-            Text('${value.toStringAsFixed(1)}$unit'),
-          ],
-        ),
-        SizedBox(height: 8),
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            activeTrackColor: Theme.of(context).primaryColor,
-            thumbColor: Theme.of(context).primaryColor,
-            overlayColor: Theme.of(context).primaryColor.withOpacity(0.1),
-          ),
-          child: Slider(
-            value: value,
-            min: min,
-            max: max,
-            divisions: ((max - min) * 2).toInt(),
-            label: value.round().toString(),
-            onChanged: onChanged,
-          ),
-        ),
-      ],
-    );
+    _length = widget.initialConfig?.length ?? 50;
+    _width = widget.initialConfig?.width ?? 10;
+    _circumferenceTop = widget.initialConfig?.circumferenceTop ?? 30;
+    _circumferenceBottom = widget.initialConfig?.circumferenceBottom ?? 25;
+    _kneeFlexion = widget.initialConfig?.kneeFlexion ?? 0;
+    _mainColor = widget.initialConfig?.color ?? Colors.grey[600]!;
+    _material = widget.initialConfig?.material ?? 'Titanium';
+    _currentModelPath = widget.initialConfig?.modelPath ?? _currentModelPath;
   }
 
   Future<void> _saveConfiguration() async {
@@ -392,14 +73,14 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final String? savedConfigs = prefs.getString('prosthetic_configs');
-
       List<ProstheticConfig> configs = [];
+
       if (savedConfigs != null) {
         configs = ProstheticConfig.decode(savedConfigs);
       }
 
       final newConfig = ProstheticConfig(
-        id: widget.config?.id ?? DateTime.now().toString(),
+        id: widget.initialConfig?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
         length: _length,
         width: _width,
         circumferenceTop: _circumferenceTop,
@@ -410,9 +91,8 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
         modelPath: _currentModelPath,
       );
 
-      if (widget.config != null) {
-        final index =
-            configs.indexWhere((config) => config.id == widget.config!.id);
+      if (widget.initialConfig != null) {
+        final index = configs.indexWhere((c) => c.id == widget.initialConfig!.id);
         if (index != -1) {
           configs[index] = newConfig;
         }
@@ -420,18 +100,20 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
         configs.add(newConfig);
       }
 
-      await prefs.setString(
-          'prosthetic_configs', ProstheticConfig.encode(configs));
+      await prefs.setString('prosthetic_configs', ProstheticConfig.encode(configs));
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            widget.config == null
-                ? 'Configuration saved successfully!'
-                : 'Configuration updated successfully!',
+            'Configuration saved successfully',
+            style: AppTheme.captionStyle.copyWith(color: Colors.white),
           ),
-          backgroundColor: Colors.green,
+          backgroundColor: AppTheme.successColor,
           behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          margin: EdgeInsets.all(16),
         ),
       );
 
@@ -439,13 +121,486 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Error saving configuration: ${e.toString()}'),
-          backgroundColor: Colors.red,
+          content: Text(
+            'Error saving configuration',
+            style: AppTheme.captionStyle.copyWith(color: Colors.white),
+          ),
+          backgroundColor: AppTheme.errorColor,
           behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          margin: EdgeInsets.all(16),
         ),
       );
     } finally {
       setState(() => _isSaving = false);
     }
+  }
+
+  Widget _buildSlider(
+    String label,
+    double value,
+    double min,
+    double max,
+    Function(double) onChanged,
+    String unit,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: AppTheme.bodyStyle.copyWith(
+                color: AppTheme.textColor,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppTheme.primaryColor.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '${value.toStringAsFixed(1)} $unit',
+                style: AppTheme.bodyStyle.copyWith(
+                  color: AppTheme.primaryColor,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 8),
+        SliderTheme(
+          data: SliderThemeData(
+            activeTrackColor: AppTheme.primaryColor,
+            inactiveTrackColor: AppTheme.primaryColor.withOpacity(0.1),
+            thumbColor: AppTheme.primaryColor,
+            overlayColor: AppTheme.primaryColor.withOpacity(0.2),
+            trackHeight: 4,
+          ),
+          child: Slider(
+            value: value,
+            min: min,
+            max: max,
+            onChanged: onChanged,
+          ),
+        ),
+        SizedBox(height: 16),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios, color: AppTheme.primaryColor),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          widget.initialConfig == null ? 'Create New Prosthetic' : 'Edit Prosthetic',
+          style: AppTheme.subheadingStyle.copyWith(
+            color: AppTheme.primaryColor,
+          ),
+        ),
+        actions: [
+          Container(
+            margin: EdgeInsets.only(right: 8),
+            child: IconButton(
+              icon: Icon(
+                Icons.save_outlined,
+                color: AppTheme.primaryColor,
+              ),
+              onPressed: _isSaving ? null : _saveConfiguration,
+            ),
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          SafeArea(
+            bottom: false,
+            child: Column(
+              children: [
+                // 3D Preview Section
+                Container(
+                  height: MediaQuery.of(context).size.height * 0.35,
+                  padding: EdgeInsets.all(16),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppTheme.primaryColor.withOpacity(0.1),
+                          blurRadius: 20,
+                          offset: Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: Prosthetic3DPreview(
+                        modelPath: _currentModelPath,
+                        length: _length,
+                        width: _width,
+                        color: _mainColor,
+                      ),
+                    ),
+                  ),
+                ),
+
+                // Customization Controls
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.only(
+                      left: 16,
+                      right: 16,
+                      bottom: 80, // Add padding for bottom nav
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // Model Selection
+                        Container(
+                          margin: EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.primaryColor.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Padding(
+                            padding: EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Model Selection',
+                                  style: AppTheme.subheadingStyle.copyWith(
+                                    fontSize: 18,
+                                  ),
+                                ),
+                                SizedBox(height: 16),
+                                DropdownButtonFormField<String>(
+                                  value: _currentModelPath,
+                                  decoration: InputDecoration(
+                                    filled: true,
+                                    fillColor: AppTheme.surfaceColor,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: AppTheme.primaryColor.withOpacity(0.1),
+                                      ),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: AppTheme.primaryColor.withOpacity(0.1),
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: AppTheme.primaryColor,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  ),
+                                  style: AppTheme.bodyStyle,
+                                  dropdownColor: Colors.white,
+                                  items: _modelPaths.map((String path) {
+                                    return DropdownMenuItem<String>(
+                                      value: path,
+                                      child: Text(
+                                        path.split('/').last,
+                                        style: AppTheme.bodyStyle,
+                                      ),
+                                    );
+                                  }).toList(),
+                                  onChanged: (String? newValue) {
+                                    if (newValue != null) {
+                                      setState(() => _currentModelPath = newValue);
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        // Basic Measurements
+                        Container(
+                          margin: EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.primaryColor.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Padding(
+                            padding: EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Basic Measurements',
+                                  style: AppTheme.subheadingStyle.copyWith(
+                                    fontSize: 18,
+                                  ),
+                                ),
+                                SizedBox(height: 20),
+                                _buildSlider(
+                                  'Length',
+                                  _length,
+                                  30,
+                                  70,
+                                  (value) => setState(() => _length = value),
+                                  'cm',
+                                ),
+                                _buildSlider(
+                                  'Width',
+                                  _width,
+                                  5,
+                                  15,
+                                  (value) => setState(() => _width = value),
+                                  'cm',
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        // Detailed Measurements
+                        Container(
+                          margin: EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.primaryColor.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Theme(
+                            data: Theme.of(context).copyWith(
+                              dividerColor: Colors.transparent,
+                            ),
+                            child: ExpansionTile(
+                              title: Text(
+                                'Detailed Measurements',
+                                style: AppTheme.subheadingStyle.copyWith(
+                                  fontSize: 18,
+                                ),
+                              ),
+                              childrenPadding: EdgeInsets.all(20),
+                              children: [
+                                _buildSlider(
+                                  'Top Circumference',
+                                  _circumferenceTop,
+                                  20,
+                                  50,
+                                  (value) => setState(() => _circumferenceTop = value),
+                                  'cm',
+                                ),
+                                _buildSlider(
+                                  'Bottom Circumference',
+                                  _circumferenceBottom,
+                                  15,
+                                  40,
+                                  (value) => setState(() => _circumferenceBottom = value),
+                                  'cm',
+                                ),
+                                _buildSlider(
+                                  'Knee Flexion',
+                                  _kneeFlexion,
+                                  0,
+                                  120,
+                                  (value) => setState(() => _kneeFlexion = value),
+                                  '°',
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        // Material Selection
+                        Container(
+                          margin: EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.primaryColor.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Padding(
+                            padding: EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Material & Color',
+                                  style: AppTheme.subheadingStyle.copyWith(
+                                    fontSize: 18,
+                                  ),
+                                ),
+                                SizedBox(height: 16),
+                                DropdownButtonFormField<String>(
+                                  value: _material,
+                                  decoration: InputDecoration(
+                                    filled: true,
+                                    fillColor: AppTheme.surfaceColor,
+                                    border: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: AppTheme.primaryColor.withOpacity(0.1),
+                                      ),
+                                    ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: AppTheme.primaryColor.withOpacity(0.1),
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                      borderSide: BorderSide(
+                                        color: AppTheme.primaryColor,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                  ),
+                                  style: AppTheme.bodyStyle,
+                                  dropdownColor: Colors.white,
+                                  items: _materials.map((String material) {
+                                    return DropdownMenuItem<String>(
+                                      value: material,
+                                      child: Text(
+                                        material,
+                                        style: AppTheme.bodyStyle,
+                                      ),
+                                    );
+                                  }).toList(),
+                                  onChanged: (String? newValue) {
+                                    if (newValue != null) {
+                                      setState(() => _material = newValue);
+                                    }
+                                  },
+                                ),
+                                SizedBox(height: 20),
+                                Text(
+                                  'Color',
+                                  style: AppTheme.bodyStyle.copyWith(
+                                    color: AppTheme.textColor,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 12,
+                                  runSpacing: 12,
+                                  children: _colorOptions.map((Color color) {
+                                    return GestureDetector(
+                                      onTap: () => setState(() => _mainColor = color),
+                                      child: Container(
+                                        width: 48,
+                                        height: 48,
+                                        decoration: BoxDecoration(
+                                          color: color,
+                                          borderRadius: BorderRadius.circular(12),
+                                          border: _mainColor == color
+                                              ? Border.all(
+                                                  color: AppTheme.primaryColor,
+                                                  width: 2,
+                                                )
+                                              : null,
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: color.withOpacity(0.3),
+                                              blurRadius: 8,
+                                              offset: Offset(0, 4),
+                                            ),
+                                          ],
+                                        ),
+                                        child: _mainColor == color
+                                            ? Icon(
+                                                Icons.check,
+                                                color: Colors.white,
+                                              )
+                                            : null,
+                                      ),
+                                    );
+                                  }).toList(),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        SizedBox(height: 20),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: CustomBottomNav(
+              currentIndex: _currentNavIndex,
+              onTap: (index) {
+                setState(() => _currentNavIndex = index);
+                // Handle navigation here
+                switch (index) {
+                  case 0:
+                    if (Navigator.canPop(context)) {
+                      Navigator.pop(context);
+                    }
+                    break;
+                  case 1:
+                    // Navigate to notifications
+                    break;
+                  case 2:
+                    // Navigate to profile
+                    break;
+                }
+              },
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

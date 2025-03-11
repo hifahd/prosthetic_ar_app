@@ -414,14 +414,13 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
   Future<void> _createConfiguration(Map<String, dynamic> measurements) async {
     try {
       final config = ProstheticConfig(
-        id: DateTime.now().toString(),
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
         length: measurements['recommended_size']['length'] ?? 50.0,
         width: measurements['recommended_size']['width'] ?? 10.0,
-        circumferenceTop:
-            measurements['recommended_size']['circumference'] ?? 30.0,
-        circumferenceBottom:
-            (measurements['recommended_size']['circumference'] ?? 30.0) * 0.8,
-        color: Theme.of(context).primaryColor,
+        circumferenceTop: measurements['recommended_size']['circumference'] ?? 30.0,
+        circumferenceBottom: (measurements['recommended_size']['circumference'] ?? 30.0) * 0.8,
+        kneeFlexion: 0.0, // Default value since it's not measured
+        color: Colors.grey[600]!,
         material: 'Titanium',
         modelPath: 'assets/prosthetic_leg.obj',
       );
@@ -435,8 +434,7 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
       }
 
       configs.add(config);
-      await prefs.setString(
-          'prosthetic_configs', ProstheticConfig.encode(configs));
+      await prefs.setString('prosthetic_configs', ProstheticConfig.encode(configs));
 
       Navigator.of(context).pop(); // Close bottom sheet
       Navigator.of(context).pop(); // Return to previous screen

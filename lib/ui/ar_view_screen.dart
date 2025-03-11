@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:model_viewer_plus/model_viewer_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/prosthetic_config.dart';
+import '../theme/app_theme.dart';
 import 'customize_prosthetic_screen.dart';
 
 class ARViewScreen extends StatefulWidget {
@@ -25,7 +26,7 @@ class _ARViewScreenState extends State<ARViewScreen>
     super.initState();
     _loadSavedConfigs();
     _controller = AnimationController(
-      duration: Duration(milliseconds: 300),
+      duration: Duration(milliseconds: 500),
       vsync: this,
     );
     _animation = CurvedAnimation(
@@ -63,8 +64,11 @@ class _ARViewScreenState extends State<ARViewScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: Colors.red,
+        backgroundColor: AppTheme.errorColor,
         behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
       ),
     );
   }
@@ -85,24 +89,31 @@ class _ARViewScreenState extends State<ARViewScreen>
 
   Widget _buildInstructionStep(
       String title, String description, IconData icon) {
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 8),
+    return Container(
+      margin: EdgeInsets.symmetric(vertical: 8),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: EdgeInsets.all(8),
+            padding: EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: Theme.of(context).primaryColor.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+              color: AppTheme.primaryColor.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.primaryColor.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: Offset(0, 2),
+                ),
+              ],
             ),
             child: Icon(
               icon,
-              size: 24,
-              color: Theme.of(context).primaryColor,
+              size: 26,
+              color: AppTheme.primaryColor,
             ),
           ),
-          SizedBox(width: 12),
+          SizedBox(width: 14),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -110,12 +121,20 @@ class _ARViewScreenState extends State<ARViewScreen>
                 Text(
                   title,
                   style: TextStyle(
+                    fontSize: 16,
                     fontWeight: FontWeight.bold,
-                    color: Theme.of(context).primaryColor,
+                    color: AppTheme.primaryColor,
                   ),
                 ),
                 SizedBox(height: 4),
-                Text(description),
+                Text(
+                  description,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppTheme.textColor,
+                    height: 1.3,
+                  ),
+                ),
               ],
             ),
           ),
@@ -129,13 +148,20 @@ class _ARViewScreenState extends State<ARViewScreen>
     return Scaffold(
       appBar: AppBar(
         title: Text('AR Visualization'),
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: AppTheme.primaryGradient,
+          ),
+        ),
+        elevation: 0,
         actions: [
           IconButton(
-            icon: Icon(Icons.help_outline),
+            icon: Icon(Icons.help_outline, color: Colors.white),
             onPressed: () => _showInstructionsDialog(context),
           ),
         ],
       ),
+      extendBodyBehindAppBar: false,
       body: Column(
         children: [
           // Main content area (AR viewer)
@@ -148,11 +174,25 @@ class _ARViewScreenState extends State<ARViewScreen>
                         src:
                             'https://modelviewer.dev/shared-assets/models/Astronaut.glb')
                     : _buildModelViewer(src: _selectedConfig!.modelPath),
+                
+                // AR Overlay Element - Guide Lines
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: CustomPaint(
+                      painter: ARGuidePainter(
+                        visible: !_showInstructions && _selectedConfig != null,
+                      ),
+                    ),
+                  ),
+                ),
+                
                 if (_isLoading)
                   Container(
                     color: Colors.black45,
                     child: Center(
-                      child: CircularProgressIndicator(),
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
                     ),
                   ),
                 if (_showInstructions)
@@ -162,49 +202,119 @@ class _ARViewScreenState extends State<ARViewScreen>
                       color: Colors.black54,
                       child: Center(
                         child: Card(
-                          margin: EdgeInsets.all(32),
-                          child: Padding(
-                            padding: EdgeInsets.all(24),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'AR Instructions',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleLarge
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.bold,
+                          margin: EdgeInsets.symmetric(horizontal: 32),
+                          elevation: 8,
+                          shadowColor: Colors.black38,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxHeight: MediaQuery.of(context).size.height * 0.8,
+                            ),
+                            child: SingleChildScrollView(
+                              child: Padding(
+                                padding: EdgeInsets.all(24),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Container(
+                                      padding: EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: AppTheme.primaryColor.withOpacity(0.1),
+                                        borderRadius: BorderRadius.circular(50),
                                       ),
+                                      child: Icon(
+                                        Icons.view_in_ar,
+                                        size: 36,
+                                        color: AppTheme.primaryColor,
+                                      ),
+                                    ),
+                                    SizedBox(height: 16),
+                                    Text(
+                                      'AR Instructions',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleLarge
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: AppTheme.primaryColor,
+                                          ),
+                                    ),
+                                    SizedBox(height: 24),
+                                    _buildInstructionStep(
+                                      'Start AR Mode',
+                                      'Look for the AR button above the bottom panel',
+                                      Icons.view_in_ar,
+                                    ),
+                                    _buildInstructionStep(
+                                      'Scan Area',
+                                      'Move device to scan surfaces in your environment',
+                                      Icons.camera,
+                                    ),
+                                    _buildInstructionStep(
+                                      'Place Model',
+                                      'Tap on a surface to place the model',
+                                      Icons.touch_app,
+                                    ),
+                                    _buildInstructionStep(
+                                      'Resize & Rotate',
+                                      'Use pinch gestures to resize and rotate the model',
+                                      Icons.pinch,
+                                    ),
+                                    SizedBox(height: 24),
+                                    ElevatedButton(
+                                      onPressed: () {
+                                        setState(() => _showInstructions = false);
+                                        _controller.reverse();
+                                      },
+                                      child: Text('Got it'),
+                                      style: ElevatedButton.styleFrom(
+                                        padding: EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius: BorderRadius.circular(12),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                                SizedBox(height: 16),
-                                _buildInstructionStep(
-                                  'Start AR Mode',
-                                  'Look for the AR button above the bottom panel',
-                                  Icons.view_in_ar,
-                                ),
-                                _buildInstructionStep(
-                                  'Scan Area',
-                                  'Move device to scan area',
-                                  Icons.camera,
-                                ),
-                                _buildInstructionStep(
-                                  'Place Model',
-                                  'Tap to place model',
-                                  Icons.touch_app,
-                                ),
-                                SizedBox(height: 16),
-                                ElevatedButton(
-                                  onPressed: () {
-                                    setState(() => _showInstructions = false);
-                                    _controller.reverse();
-                                  },
-                                  child: Text('Got it'),
-                                ),
-                              ],
+                              ),
                             ),
                           ),
                         ),
+                      ),
+                    ),
+                  ),
+                
+                // AR Status Indicator
+                if (!_showInstructions && !_isLoading)
+                  Positioned(
+                    top: 16,
+                    right: 16,
+                    child: Container(
+                      padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.view_in_ar,
+                            size: 18,
+                            color: Colors.white,
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            _selectedConfig != null ? 'Model Ready' : 'No Model Selected',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -219,51 +329,72 @@ class _ARViewScreenState extends State<ARViewScreen>
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.1),
-                  blurRadius: 4,
-                  offset: Offset(0, -2),
+                  blurRadius: 6,
+                  offset: Offset(0, -3),
                 ),
               ],
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
             ),
             child: SafeArea(
               child: Padding(
-                padding: EdgeInsets.all(16),
-                child: _savedConfigs.isEmpty && !_isLoading
-                    ? Container(
-                        width: 240,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) =>
-                                    CustomizeProstheticScreen(),
-                              ),
-                            ).then((_) => _loadSavedConfigs());
-                          },
-                          child: Text('Create Configuration'),
-                          style: ElevatedButton.styleFrom(
-                            padding: EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                        ),
-                      )
-                    : Container(
-                        height: 80,
-                        child: ListView.builder(
-                          scrollDirection: Axis.horizontal,
-                          itemCount: _savedConfigs.length,
-                          itemBuilder: (context, index) {
-                            final config = _savedConfigs[index];
-                            final isSelected = _selectedConfig?.id == config.id;
-                            return Padding(
-                              padding: EdgeInsets.only(right: 8),
-                              child: _buildConfigCard(config, isSelected),
-                            );
-                          },
+                padding: EdgeInsets.fromLTRB(16, 20, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Padding(
+                      padding: EdgeInsets.only(left: 8, bottom: 12),
+                      child: Text(
+                        _savedConfigs.isEmpty ? 'Create Your First Configuration' : 'Select Configuration',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.primaryColor,
                         ),
                       ),
+                    ),
+                    _savedConfigs.isEmpty && !_isLoading
+                        ? Container(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              icon: Icon(Icons.add),
+                              label: Text('Create Configuration'),
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => CustomizeProstheticScreen(),
+                                  ),
+                                ).then((_) => _loadSavedConfigs());
+                              },
+                              style: ElevatedButton.styleFrom(
+                                padding: EdgeInsets.symmetric(vertical: 14),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                elevation: 2,
+                              ),
+                            ),
+                          )
+                        : Container(
+                            height: 100,
+                            child: ListView.builder(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: _savedConfigs.length,
+                              itemBuilder: (context, index) {
+                                final config = _savedConfigs[index];
+                                final isSelected = _selectedConfig?.id == config.id;
+                                return Padding(
+                                  padding: EdgeInsets.only(right: 12),
+                                  child: _buildConfigCard(config, isSelected),
+                                );
+                              },
+                            ),
+                          ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -277,45 +408,72 @@ class _ARViewScreenState extends State<ARViewScreen>
       color: Colors.transparent,
       child: InkWell(
         onTap: () => setState(() => _selectedConfig = config),
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          width: 100,
-          padding: EdgeInsets.all(8),
+        borderRadius: BorderRadius.circular(15),
+        child: AnimatedContainer(
+          duration: Duration(milliseconds: 200),
+          width: 120,
+          padding: EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: isSelected ? Theme.of(context).primaryColor : Colors.white,
-            borderRadius: BorderRadius.circular(12),
+            color: isSelected 
+                ? AppTheme.primaryColor 
+                : AppTheme.surfaceColor,
+            borderRadius: BorderRadius.circular(15),
             border: Border.all(
-              color: isSelected
-                  ? Theme.of(context).primaryColor
-                  : Colors.grey[300]!,
-              width: 1,
+              color: isSelected 
+                  ? AppTheme.primaryColor 
+                  : AppTheme.primaryColor.withOpacity(0.2),
+              width: isSelected ? 2 : 1,
             ),
+            boxShadow: isSelected 
+                ? [
+                    BoxShadow(
+                      color: AppTheme.primaryColor.withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: Offset(0, 3),
+                    )
+                  ] 
+                : null,
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                Icons.view_in_ar,
-                color:
-                    isSelected ? Colors.white : Theme.of(context).primaryColor,
-                size: 24,
+              Container(
+                padding: EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: isSelected 
+                      ? Colors.white.withOpacity(0.2) 
+                      : AppTheme.primaryColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  Icons.view_in_ar,
+                  color: isSelected 
+                      ? Colors.white 
+                      : AppTheme.primaryColor,
+                  size: 26,
+                ),
               ),
-              SizedBox(height: 8),
+              SizedBox(height: 10),
               Text(
                 'Config ${config.id.substring(0, 4)}',
                 style: TextStyle(
-                  color: isSelected ? Colors.white : Colors.black87,
+                  color: isSelected 
+                      ? Colors.white 
+                      : AppTheme.textColor,
                   fontWeight: FontWeight.bold,
-                  fontSize: 12,
+                  fontSize: 14,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
+              SizedBox(height: 4),
               Text(
                 '${config.length.toStringAsFixed(1)}cm',
                 style: TextStyle(
-                  color: isSelected ? Colors.white70 : Colors.grey[600],
-                  fontSize: 10,
+                  color: isSelected 
+                      ? Colors.white.withOpacity(0.8) 
+                      : AppTheme.subtitleColor,
+                  fontSize: 12,
                 ),
               ),
             ],
@@ -329,7 +487,26 @@ class _ARViewScreenState extends State<ARViewScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('How to Use AR View'),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        title: Column(
+          children: [
+            Icon(
+              Icons.view_in_ar,
+              size: 36,
+              color: AppTheme.primaryColor,
+            ),
+            SizedBox(height: 8),
+            Text(
+              'How to Use AR View',
+              style: TextStyle(
+                color: AppTheme.primaryColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -366,10 +543,114 @@ class _ARViewScreenState extends State<ARViewScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Got it'),
+            child: Text(
+              'Got it',
+              style: TextStyle(
+                color: AppTheme.primaryColor,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
         ],
       ),
     );
   }
+}
+
+// AR Guide Painter for visual guidelines
+class ARGuidePainter extends CustomPainter {
+  final bool visible;
+  
+  ARGuidePainter({required this.visible});
+  
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (!visible) return;
+    
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.4)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+      
+    // Draw grid lines
+    final gridSpacing = 30.0;
+    final centerX = size.width / 2;
+    final centerY = size.height / 2;
+    
+    // Horizontal grid lines
+    for (double y = 0; y < size.height; y += gridSpacing) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+    
+    // Vertical grid lines
+    for (double x = 0; x < size.width; x += gridSpacing) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    
+    // Draw center crosshair
+    final crossPaint = Paint()
+      ..color = Colors.blue.withOpacity(0.6)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+      
+    final crossSize = 30.0;
+    
+    // Horizontal line
+    canvas.drawLine(
+      Offset(centerX - crossSize, centerY),
+      Offset(centerX + crossSize, centerY),
+      crossPaint,
+    );
+    
+    // Vertical line
+    canvas.drawLine(
+      Offset(centerX, centerY - crossSize),
+      Offset(centerX, centerY + crossSize),
+      crossPaint,
+    );
+    
+    // Draw center circle
+    canvas.drawCircle(
+      Offset(centerX, centerY),
+      10.0,
+      Paint()
+        ..color = Colors.blue.withOpacity(0.3)
+        ..style = PaintingStyle.fill,
+    );
+    
+    // Draw tap hint text
+    final textSpan = TextSpan(
+      text: "Tap to place model",
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: 14,
+        fontWeight: FontWeight.bold,
+        shadows: [
+          Shadow(
+            offset: Offset(1, 1),
+            blurRadius: 3,
+            color: Colors.black45,
+          ),
+        ],
+      ),
+    );
+    
+    final textPainter = TextPainter(
+      text: textSpan,
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+    );
+    
+    textPainter.layout();
+    textPainter.paint(
+      canvas,
+      Offset(
+        centerX - textPainter.width / 2,
+        centerY + crossSize + 10,
+      ),
+    );
+  }
+  
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

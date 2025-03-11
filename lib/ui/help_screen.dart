@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 
 class HelpScreen extends StatelessWidget {
   const HelpScreen({Key? key}) : super(key: key);
@@ -6,8 +7,20 @@ class HelpScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppTheme.backgroundColor,
       appBar: AppBar(
-        title: Text('Help & Guide'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios, color: AppTheme.primaryColor),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          'Help & Guide',
+          style: AppTheme.subheadingStyle.copyWith(
+            color: AppTheme.primaryColor,
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.all(16),
@@ -88,24 +101,35 @@ class HelpScreen extends StatelessWidget {
     IconData icon, {
     List<String>? bulletPoints,
   }) {
-    return Card(
+    return Container(
       margin: EdgeInsets.only(bottom: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryColor.withOpacity(0.05),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
       child: Padding(
-        padding: EdgeInsets.all(16),
+        padding: EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Container(
-                  padding: EdgeInsets.all(8),
+                  padding: EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+                    color: AppTheme.primaryColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
                   ),
                   child: Icon(
                     icon,
-                    color: Theme.of(context).primaryColor,
+                    color: AppTheme.primaryColor,
                     size: 24,
                   ),
                 ),
@@ -113,9 +137,9 @@ class HelpScreen extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                    style: AppTheme.subheadingStyle.copyWith(
+                      fontSize: 20,
+                    ),
                   ),
                 ),
               ],
@@ -123,20 +147,33 @@ class HelpScreen extends StatelessWidget {
             SizedBox(height: 16),
             Text(
               description,
-              style: Theme.of(context).textTheme.bodyLarge,
+              style: AppTheme.bodyStyle.copyWith(
+                color: AppTheme.textColor,
+              ),
             ),
             if (bulletPoints != null) ...[
-              SizedBox(height: 12),
+              SizedBox(height: 16),
               ...bulletPoints.map((point) => Padding(
-                    padding: EdgeInsets.only(bottom: 8),
+                    padding: EdgeInsets.only(bottom: 12),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('• ', style: TextStyle(fontSize: 16)),
+                        Container(
+                          margin: EdgeInsets.only(top: 6),
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             point,
-                            style: Theme.of(context).textTheme.bodyLarge,
+                            style: AppTheme.bodyStyle.copyWith(
+                              color: AppTheme.textColor,
+                            ),
                           ),
                         ),
                       ],

@@ -31,7 +31,7 @@ apply from: "$flutterRoot/packages/flutter_tools/gradle/flutter.gradle"
 
 android {
     namespace "com.example.prosthetic_ar_app"
-    compileSdkVersion 34  // Changed this to 34
+    compileSdk = 35
     ndkVersion flutter.ndkVersion
 
     compileOptions {
