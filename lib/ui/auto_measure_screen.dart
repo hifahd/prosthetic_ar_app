@@ -29,7 +29,8 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
   late Animation<double> _fadeAnimation;
   Size? _imageSize;
 
-  final String backendUrl = 'http://192.168.1.6:8000/analyze/image';
+  // Update this to your computer's IP address and port
+  final String backendUrl = 'http://192.168.98.208:8000/analyze/image';
 
   @override
   void initState() {
@@ -90,31 +91,50 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
     try {
       if (_imageFile == null) return;
 
+      // Show analysis progress dialog
+      setState(() {
+        _status = 'Sending image for analysis...';
+      });
+
       var request = http.MultipartRequest('POST', Uri.parse(backendUrl));
       request.files
           .add(await http.MultipartFile.fromPath('file', _imageFile!.path));
+
+      setState(() {
+        _status = 'Processing image...';
+      });
 
       var response = await request.send();
       var responseData = await response.stream.bytesToString();
       var result = json.decode(responseData);
 
-      if (response.statusCode == 200 && result['missing_limbs'] != null) {
-        setState(() {
-          _measurements = result;
-          _isLoading = false;
-          _status = 'Analysis complete';
-        });
+      setState(() {
+        _measurements = result;
+        _isLoading = false;
+        _status = 'Analysis complete';
+      });
 
-        if (result['missing_limbs'].isNotEmpty) {
-          _showMeasurementResults(result['missing_limbs'][0]);
-        } else {
-          _showNoLimbsDetectedDialog();
-        }
+      // Check if the server returned a message to display
+      if (result.containsKey('message')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result['message']),
+            backgroundColor: result['success'] == true ? Colors.green : Colors.orange,
+            duration: Duration(seconds: 5),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+
+      if (result['success'] == false) {
+        // Notify user but don't show results dialog if analysis failed
+        return;
+      }
+
+      if (result['missing_limbs'] != null && result['missing_limbs'].isNotEmpty) {
+        _showMeasurementResults(result['missing_limbs'][0]);
       } else {
-        setState(() {
-          _isLoading = false;
-          _status = 'Analysis failed: No measurements found';
-        });
+        _showNoLimbsDetectedDialog();
       }
     } catch (e) {
       setState(() {
@@ -131,6 +151,7 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
             onPressed: _analyzePicture,
             textColor: Colors.white,
           ),
+          behavior: SnackBarBehavior.floating,
         ),
       );
     }
@@ -158,6 +179,12 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
   }
 
   Widget _buildConfidenceIndicator(double confidence) {
+    Color indicatorColor = confidence > 0.7
+        ? Colors.green
+        : confidence > 0.5
+            ? Colors.orange
+            : Colors.red;
+            
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -169,13 +196,7 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
         LinearProgressIndicator(
           value: confidence,
           backgroundColor: Colors.grey[200],
-          valueColor: AlwaysStoppedAnimation<Color>(
-            confidence > 0.7
-                ? Colors.green
-                : confidence > 0.5
-                    ? Colors.orange
-                    : Colors.red,
-          ),
+          valueColor: AlwaysStoppedAnimation<Color>(indicatorColor),
         ),
         SizedBox(height: 2),
         Text(
@@ -194,25 +215,27 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('No Missing Limbs Detected'),
+        title: Text('No Prosthetic Needs Detected'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Make sure:'),
+            Text('The system did not detect any specific prosthetic needs. This could be because:'),
             SizedBox(height: 8),
             Padding(
               padding: EdgeInsets.only(left: 8),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('• You are standing in a well-lit area'),
-                  Text('• Your full body is clearly visible'),
-                  Text('• You are aligned with the guide outline'),
-                  Text('• The missing limb is visible in the frame'),
+                  Text('• The full body wasn\'t clearly visible in the image'),
+                  Text('• There were no significant asymmetries detected'),
+                  Text('• The person doesn\'t need prosthetic support'),
+                  Text('• The image quality or lighting was insufficient'),
                 ],
               ),
             ),
+            SizedBox(height: 12),
+            Text('Would you like to try again with a different image or pose?'),
           ],
         ),
         actions: [
@@ -252,6 +275,42 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildDetectionReasonsList(List<dynamic> reasons) {
+    if (reasons == null || reasons.isEmpty) {
+      return Text("No specific detection criteria met - showing for demonstration");
+    }
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Detection criteria:',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.grey[700],
+          ),
+        ),
+        SizedBox(height: 6),
+        ...reasons.map((reason) => Padding(
+          padding: const EdgeInsets.only(left: 8.0, bottom: 4.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.check_circle, size: 16, color: Colors.green),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  reason.toString(),
+                  style: TextStyle(color: Colors.grey[700]),
+                ),
+              ),
+            ],
+          ),
+        )).toList(),
+      ],
     );
   }
 
@@ -335,13 +394,24 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
                                       ),
                                       SizedBox(height: 8),
                                       _buildConfidenceIndicator(
-                                          measurements['confidence']),
+                                          measurements['confidence'] ?? 0.5),
                                     ],
                                   ),
                                 ),
                               ],
                             ),
                             Divider(height: 24),
+                            
+                            // Detection reasons (if available)
+                            if (measurements.containsKey('detection_reasons'))
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildDetectionReasonsList(measurements['detection_reasons']),
+                                  SizedBox(height: 16),
+                                ],
+                              ),
+                              
                             _buildMeasurementRow(
                               'Length',
                               '${measurements['recommended_size']['length'].toStringAsFixed(1)} cm',
@@ -357,6 +427,31 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
                               '${measurements['recommended_size']['circumference'].toStringAsFixed(1)} cm',
                               Icons.radio_button_unchecked,
                             ),
+                            
+                            // Asymmetry data if available
+                            if (measurements.containsKey('asymmetry_data') && 
+                                measurements['asymmetry_data'] != null) ...[
+                              Divider(height: 24),
+                              Text(
+                                'Asymmetry Analysis',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).primaryColor,
+                                ),
+                              ),
+                              SizedBox(height: 8),
+                              _buildMeasurementRow(
+                                'Hip-Knee Asymmetry',
+                                '${(measurements['asymmetry_data']['hip_knee_asymmetry'] * 100).toStringAsFixed(1)}%',
+                                Icons.compare_arrows,
+                              ),
+                              _buildMeasurementRow(
+                                'Knee-Ankle Asymmetry',
+                                '${(measurements['asymmetry_data']['knee_ankle_asymmetry'] * 100).toStringAsFixed(1)}%',
+                                Icons.compare_arrows,
+                              ),
+                            ],
+                            
                             if (measurements['distances'] != null) ...[
                               Divider(height: 24),
                               Text(

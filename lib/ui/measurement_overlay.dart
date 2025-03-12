@@ -21,6 +21,11 @@ class MeasurementOverlay extends CustomPainter {
       ..color = Colors.red
       ..style = PaintingStyle.fill;
 
+    // Check for measurement points
+    if (!measurements.containsKey('points') || measurements['points'] == null) {
+      return;
+    }
+
     final measurementPoints = measurements['points'] as List;
 
     // Draw measurement lines
@@ -40,16 +45,63 @@ class MeasurementOverlay extends CustomPainter {
       canvas.drawCircle(point1, 4, dotPaint);
       canvas.drawCircle(point2, 4, dotPaint);
 
-      // Draw measurement text
-      final midPoint = Offset(
-        (point1.dx + point2.dx) / 2,
-        (point1.dy + point2.dy) / 2,
-      );
+      // Draw measurement text if distances are available
+      if (measurements.containsKey('distances') && 
+          measurements['distances'] != null &&
+          measurements['distances'].length > i) {
+        final midPoint = Offset(
+          (point1.dx + point2.dx) / 2,
+          (point1.dy + point2.dy) / 2,
+        );
 
+        _drawMeasurementText(
+          canvas,
+          '${measurements['distances'][i].toStringAsFixed(1)} cm',
+          midPoint,
+        );
+      }
+    }
+
+    // Draw confidence and limb type
+    if (measurements.containsKey('coordinates') && 
+        measurements.containsKey('confidence') &&
+        measurements.containsKey('limb_type')) {
+      
+      final x = measurements['coordinates']['x'].toDouble();
+      final y = measurements['coordinates']['y'].toDouble();
+      final position = _scalePoint(x, y, size);
+      final confidence = measurements['confidence'].toDouble();
+      final limbType = measurements['limb_type'].toString().replaceAll('_', ' ');
+      
+      // Draw indicator for the limb position
+      canvas.drawCircle(position, 8, 
+        Paint()..color = Colors.red.withOpacity(0.6)
+      );
+      
+      // Draw text label with confidence
+      _drawMeasurementText(
+        canvas, 
+        '$limbType (${(confidence * 100).toStringAsFixed(0)}%)',
+        Offset(position.dx, position.dy - 20),
+        fontSize: 16
+      );
+    }
+
+    // Draw asymmetry info if available
+    if (measurements.containsKey('asymmetry_data') && 
+        measurements['asymmetry_data'] != null) {
+      
+      final asymmetryData = measurements['asymmetry_data'];
+      final String asymmetryText = 'Asymmetry: ' + 
+          '${(asymmetryData['hip_knee_asymmetry'] * 100).toStringAsFixed(1)}% Hip-Knee, ' +
+          '${(asymmetryData['knee_ankle_asymmetry'] * 100).toStringAsFixed(1)}% Knee-Ankle';
+      
       _drawMeasurementText(
         canvas,
-        '${measurements['distances'][i].toStringAsFixed(1)} cm',
-        midPoint,
+        asymmetryText,
+        Offset(size.width / 2, size.height - 40),
+        fontSize: 14,
+        backgroundColor: Colors.black.withOpacity(0.7)
       );
     }
   }
@@ -61,15 +113,21 @@ class MeasurementOverlay extends CustomPainter {
     );
   }
 
-  void _drawMeasurementText(Canvas canvas, String text, Offset position) {
+  void _drawMeasurementText(Canvas canvas, String text, Offset position, {double fontSize = 14, Color? backgroundColor}) {
     final textPainter = TextPainter(
       text: TextSpan(
         text: text,
         style: TextStyle(
           color: Colors.white,
-          fontSize: 14,
-          backgroundColor: Colors.black54,
+          fontSize: fontSize,
           fontWeight: FontWeight.bold,
+          shadows: [
+            Shadow(
+              color: Colors.black,
+              blurRadius: 2,
+              offset: Offset(1, 1),
+            ),
+          ],
         ),
       ),
       textDirection: TextDirection.ltr,
@@ -78,15 +136,17 @@ class MeasurementOverlay extends CustomPainter {
     textPainter.layout();
 
     // Draw text background
-    final rect = Rect.fromCenter(
-      center: position,
-      width: textPainter.width + 8,
-      height: textPainter.height + 4,
-    );
-    canvas.drawRect(
-      rect,
-      Paint()..color = Colors.black54,
-    );
+    if (backgroundColor != null) {
+      final rect = Rect.fromCenter(
+        center: position,
+        width: textPainter.width + 16,
+        height: textPainter.height + 8,
+      );
+      canvas.drawRect(
+        rect,
+        Paint()..color = backgroundColor,
+      );
+    }
 
     textPainter.paint(
       canvas,
@@ -98,5 +158,5 @@ class MeasurementOverlay extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
+  bool shouldRepaint(CustomPainter oldDelegate) => true;
 }
