@@ -23,12 +23,13 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
   late double _kneeFlexion;
   late Color _mainColor;
   late String _material;
-  String _currentModelPath = 'assets/experiment.obj';
+  String _currentModelPath = 'assets/cyborg.glb';
   bool _isExpanded = false;
   bool _isSaving = false;
   int _currentNavIndex = 0;
 
   final List<String> _modelPaths = [
+    'assets/cyborg.glb',
     'assets/experiment.obj',
     'assets/prosthetic_leg.obj',
     'assets/detailed_prosthetic_leg.obj',

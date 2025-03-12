@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_cube/flutter_cube.dart';
-import 'package:vector_math/vector_math_64.dart' as vector;
+import 'package:model_viewer_plus/model_viewer_plus.dart';
 
 class Prosthetic3DPreview extends StatelessWidget {
   final String modelPath;
@@ -18,21 +17,24 @@ class Prosthetic3DPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 300,
-      height: 400,
-      child: Cube(
-        onSceneCreated: (Scene scene) {
-          scene.world.add(Object(
-            fileName: modelPath,
-            scale: vector.Vector3(width / 10, length / 50, width / 10),
-            position: vector.Vector3(0, 0, 0),
-          ));
-          scene.camera.zoom = 10;
-          scene.camera.position.z = 15;
-          scene.light.position.setFrom(vector.Vector3(0, 10, 10));
-        },
-      ),
+    // Convert color to a CSS-style hex string for the modelViewer
+    String colorString = '#${color.value.toRadixString(16).substring(2)}';
+
+    return ModelViewer(
+      src: modelPath,
+      alt: "Prosthetic Model",
+      ar: false,
+      autoRotate: true,
+      cameraControls: true,
+      backgroundColor: const Color.fromARGB(255, 245, 245, 245),
+      // Apply custom styling for color and scale
+      relatedCss: '''
+        .model-viewer {
+          --poster-color: transparent;
+        }
+      ''',
+      // The modified scale will be applied visually but not programmatically
+      // since we don't have direct JavaScript access in this version
     );
   }
 }
