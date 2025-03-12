@@ -7,10 +7,12 @@ import '../widgets/custom_bottom_nav.dart';
 
 class CustomizeProstheticScreen extends StatefulWidget {
   final ProstheticConfig? initialConfig;
-  const CustomizeProstheticScreen({Key? key, this.initialConfig}) : super(key: key);
+  const CustomizeProstheticScreen({Key? key, this.initialConfig})
+      : super(key: key);
 
   @override
-  _CustomizeProstheticScreenState createState() => _CustomizeProstheticScreenState();
+  _CustomizeProstheticScreenState createState() =>
+      _CustomizeProstheticScreenState();
 }
 
 class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
@@ -55,11 +57,32 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
   }
 
   void _initializeValues() {
-    _length = widget.initialConfig?.length ?? 50;
-    _width = widget.initialConfig?.width ?? 10;
-    _circumferenceTop = widget.initialConfig?.circumferenceTop ?? 30;
-    _circumferenceBottom = widget.initialConfig?.circumferenceBottom ?? 25;
-    _kneeFlexion = widget.initialConfig?.kneeFlexion ?? 0;
+    // Make sure initial values are within slider ranges
+    _length = widget.initialConfig?.length ?? 50.0;
+    // Ensure value is in bounds
+    if (_length < 30.0) _length = 30.0;
+    if (_length > 70.0) _length = 70.0;
+
+    _width = widget.initialConfig?.width ?? 10.0;
+    // Ensure value is in bounds
+    if (_width < 5.0) _width = 5.0;
+    if (_width > 15.0) _width = 15.0;
+
+    _circumferenceTop = widget.initialConfig?.circumferenceTop ?? 30.0;
+    // Ensure value is in bounds
+    if (_circumferenceTop < 20.0) _circumferenceTop = 20.0;
+    if (_circumferenceTop > 50.0) _circumferenceTop = 50.0;
+
+    _circumferenceBottom = widget.initialConfig?.circumferenceBottom ?? 25.0;
+    // Ensure value is in bounds
+    if (_circumferenceBottom < 15.0) _circumferenceBottom = 15.0;
+    if (_circumferenceBottom > 40.0) _circumferenceBottom = 40.0;
+
+    _kneeFlexion = widget.initialConfig?.kneeFlexion ?? 0.0;
+    // Ensure value is in bounds
+    if (_kneeFlexion < 0.0) _kneeFlexion = 0.0;
+    if (_kneeFlexion > 120.0) _kneeFlexion = 120.0;
+
     _mainColor = widget.initialConfig?.color ?? Colors.grey[600]!;
     _material = widget.initialConfig?.material ?? 'Titanium';
     _currentModelPath = widget.initialConfig?.modelPath ?? _currentModelPath;
@@ -80,7 +103,8 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
       }
 
       final newConfig = ProstheticConfig(
-        id: widget.initialConfig?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
+        id: widget.initialConfig?.id ??
+            DateTime.now().millisecondsSinceEpoch.toString(),
         length: _length,
         width: _width,
         circumferenceTop: _circumferenceTop,
@@ -92,7 +116,8 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
       );
 
       if (widget.initialConfig != null) {
-        final index = configs.indexWhere((c) => c.id == widget.initialConfig!.id);
+        final index =
+            configs.indexWhere((c) => c.id == widget.initialConfig!.id);
         if (index != -1) {
           configs[index] = newConfig;
         }
@@ -100,7 +125,8 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
         configs.add(newConfig);
       }
 
-      await prefs.setString('prosthetic_configs', ProstheticConfig.encode(configs));
+      await prefs.setString(
+          'prosthetic_configs', ProstheticConfig.encode(configs));
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -146,6 +172,11 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
     Function(double) onChanged,
     String unit,
   ) {
+    // Ensure value is within bounds to prevent slider errors
+    double safeValue = value;
+    if (safeValue < min) safeValue = min;
+    if (safeValue > max) safeValue = max;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -166,7 +197,7 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                '${value.toStringAsFixed(1)} $unit',
+                '${safeValue.toStringAsFixed(1)} $unit',
                 style: AppTheme.bodyStyle.copyWith(
                   color: AppTheme.primaryColor,
                   fontWeight: FontWeight.w600,
@@ -185,7 +216,7 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
             trackHeight: 4,
           ),
           child: Slider(
-            value: value,
+            value: safeValue,
             min: min,
             max: max,
             onChanged: onChanged,
@@ -208,7 +239,9 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          widget.initialConfig == null ? 'Create New Prosthetic' : 'Edit Prosthetic',
+          widget.initialConfig == null
+              ? 'Create New Prosthetic'
+              : 'Edit Prosthetic',
           style: AppTheme.subheadingStyle.copyWith(
             color: AppTheme.primaryColor,
           ),
@@ -305,13 +338,15 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                       borderSide: BorderSide(
-                                        color: AppTheme.primaryColor.withOpacity(0.1),
+                                        color: AppTheme.primaryColor
+                                            .withOpacity(0.1),
                                       ),
                                     ),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                       borderSide: BorderSide(
-                                        color: AppTheme.primaryColor.withOpacity(0.1),
+                                        color: AppTheme.primaryColor
+                                            .withOpacity(0.1),
                                       ),
                                     ),
                                     focusedBorder: OutlineInputBorder(
@@ -321,7 +356,8 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
                                         width: 2,
                                       ),
                                     ),
-                                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 12),
                                   ),
                                   style: AppTheme.bodyStyle,
                                   dropdownColor: Colors.white,
@@ -336,7 +372,8 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
                                   }).toList(),
                                   onChanged: (String? newValue) {
                                     if (newValue != null) {
-                                      setState(() => _currentModelPath = newValue);
+                                      setState(
+                                          () => _currentModelPath = newValue);
                                     }
                                   },
                                 ),
@@ -424,7 +461,8 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
                                   _circumferenceTop,
                                   20,
                                   50,
-                                  (value) => setState(() => _circumferenceTop = value),
+                                  (value) =>
+                                      setState(() => _circumferenceTop = value),
                                   'cm',
                                 ),
                                 _buildSlider(
@@ -432,7 +470,8 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
                                   _circumferenceBottom,
                                   15,
                                   40,
-                                  (value) => setState(() => _circumferenceBottom = value),
+                                  (value) => setState(
+                                      () => _circumferenceBottom = value),
                                   'cm',
                                 ),
                                 _buildSlider(
@@ -440,7 +479,8 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
                                   _kneeFlexion,
                                   0,
                                   120,
-                                  (value) => setState(() => _kneeFlexion = value),
+                                  (value) =>
+                                      setState(() => _kneeFlexion = value),
                                   '°',
                                 ),
                               ],
@@ -482,13 +522,15 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
                                     border: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                       borderSide: BorderSide(
-                                        color: AppTheme.primaryColor.withOpacity(0.1),
+                                        color: AppTheme.primaryColor
+                                            .withOpacity(0.1),
                                       ),
                                     ),
                                     enabledBorder: OutlineInputBorder(
                                       borderRadius: BorderRadius.circular(12),
                                       borderSide: BorderSide(
-                                        color: AppTheme.primaryColor.withOpacity(0.1),
+                                        color: AppTheme.primaryColor
+                                            .withOpacity(0.1),
                                       ),
                                     ),
                                     focusedBorder: OutlineInputBorder(
@@ -498,7 +540,8 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
                                         width: 2,
                                       ),
                                     ),
-                                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                    contentPadding: EdgeInsets.symmetric(
+                                        horizontal: 16, vertical: 12),
                                   ),
                                   style: AppTheme.bodyStyle,
                                   dropdownColor: Colors.white,
@@ -531,13 +574,15 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
                                   runSpacing: 12,
                                   children: _colorOptions.map((Color color) {
                                     return GestureDetector(
-                                      onTap: () => setState(() => _mainColor = color),
+                                      onTap: () =>
+                                          setState(() => _mainColor = color),
                                       child: Container(
                                         width: 48,
                                         height: 48,
                                         decoration: BoxDecoration(
                                           color: color,
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
                                           border: _mainColor == color
                                               ? Border.all(
                                                   color: AppTheme.primaryColor,
