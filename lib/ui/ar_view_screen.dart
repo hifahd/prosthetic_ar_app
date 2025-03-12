@@ -170,9 +170,7 @@ class _ARViewScreenState extends State<ARViewScreen>
             child: Stack(
               children: [
                 _selectedConfig == null
-                    ? _buildModelViewer(
-                        src:
-                            'https://modelviewer.dev/shared-assets/models/Astronaut.glb')
+                    ? _buildModelViewer(src: 'assets/cyborg.glb')
                     : _buildModelViewer(src: _selectedConfig!.modelPath),
 
                 // AR Overlay Element - Guide Lines
