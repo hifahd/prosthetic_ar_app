@@ -23,6 +23,7 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
   late double _kneeFlexion;
   late Color _mainColor;
   late String _material;
+  late int _patientAge; // Added age state variable
   String _currentModelPath = 'assets/cyborg.glb';
   bool _isExpanded = false;
   bool _isSaving = false;
@@ -84,6 +85,9 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
     if (_kneeFlexion < 0.0) _kneeFlexion = 0.0;
     if (_kneeFlexion > 120.0) _kneeFlexion = 120.0;
 
+    // Initialize patient age
+    _patientAge = widget.initialConfig?.patientAge ?? 30;
+
     _mainColor = widget.initialConfig?.color ?? Colors.grey[600]!;
     _material = widget.initialConfig?.material ?? 'Titanium';
     _currentModelPath = widget.initialConfig?.modelPath ?? _currentModelPath;
@@ -114,6 +118,7 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
         color: _mainColor,
         material: _material,
         modelPath: _currentModelPath,
+        patientAge: _patientAge, // Added age parameter
       );
 
       if (widget.initialConfig != null) {
@@ -121,6 +126,8 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
             configs.indexWhere((c) => c.id == widget.initialConfig!.id);
         if (index != -1) {
           configs[index] = newConfig;
+        } else {
+          configs.add(newConfig);
         }
       } else {
         configs.add(newConfig);
@@ -305,6 +312,86 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
+                        // Patient Information Section - NEW SECTION
+                        Container(
+                          margin: EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color: AppTheme.primaryColor.withOpacity(0.05),
+                                blurRadius: 10,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Padding(
+                            padding: EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Patient Information',
+                                  style: AppTheme.subheadingStyle.copyWith(
+                                    fontSize: 18,
+                                  ),
+                                ),
+                                SizedBox(height: 20),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Age',
+                                      style: AppTheme.bodyStyle.copyWith(
+                                        color: AppTheme.textColor,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    Container(
+                                      width: 100,
+                                      child: TextFormField(
+                                        keyboardType: TextInputType.number,
+                                        decoration: InputDecoration(
+                                          filled: true,
+                                          fillColor: AppTheme.surfaceColor,
+                                          border: OutlineInputBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            borderSide: BorderSide(
+                                              color: AppTheme.primaryColor
+                                                  .withOpacity(0.1),
+                                            ),
+                                          ),
+                                          contentPadding: EdgeInsets.symmetric(
+                                              horizontal: 12, vertical: 8),
+                                        ),
+                                        initialValue: _patientAge.toString(),
+                                        onChanged: (value) {
+                                          setState(() {
+                                            _patientAge =
+                                                int.tryParse(value) ?? 30;
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: 8),
+                                Text(
+                                  'Prosthetic size will automatically scale based on age',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppTheme.subtitleColor,
+                                    fontStyle: FontStyle.italic,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+
                         // Model Selection
                         Container(
                           margin: EdgeInsets.symmetric(vertical: 8),

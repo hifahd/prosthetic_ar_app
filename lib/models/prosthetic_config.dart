@@ -11,6 +11,7 @@ class ProstheticConfig {
   final Color color;
   final String material;
   final String modelPath;
+  final int patientAge; // Added field
 
   ProstheticConfig({
     required this.id,
@@ -22,6 +23,7 @@ class ProstheticConfig {
     required this.color,
     required this.material,
     required this.modelPath,
+    this.patientAge = 30, // Default value
   });
 
   Map<String, dynamic> toMap() {
@@ -35,6 +37,7 @@ class ProstheticConfig {
       'color': color.value,
       'material': material,
       'modelPath': modelPath,
+      'patientAge': patientAge, // Added to map
     };
   }
 
@@ -49,6 +52,7 @@ class ProstheticConfig {
       color: Color(map['color']),
       material: map['material'],
       modelPath: map['modelPath'],
+      patientAge: map['patientAge'] ?? 30, // Read from map with default
     );
   }
 
@@ -76,6 +80,7 @@ class ProstheticConfig {
     Color? color,
     String? material,
     String? modelPath,
+    int? patientAge,
   }) {
     return ProstheticConfig(
       id: id ?? this.id,
@@ -87,6 +92,7 @@ class ProstheticConfig {
       color: color ?? this.color,
       material: material ?? this.material,
       modelPath: modelPath ?? this.modelPath,
+      patientAge: patientAge ?? this.patientAge,
     );
   }
 }
