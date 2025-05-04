@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:model_viewer_plus/model_viewer_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/prosthetic_config.dart';
 import '../theme/app_theme.dart';
 import '../utils/prosthetic_scaler.dart';
-import '../widgets/body_anchor_overlay.dart';
 import 'customize_prosthetic_screen.dart';
+import 'mediapipe_ar_view.dart';
 
 class ARViewScreen extends StatefulWidget {
   const ARViewScreen({Key? key}) : super(key: key);
@@ -20,18 +19,8 @@ class _ARViewScreenState extends State<ARViewScreen>
   ProstheticConfig? _selectedConfig;
   bool _isLoading = true;
   bool _showInstructions = true;
-  bool _isAnchored = false;
-  bool _isInARMode = false; // Make sure this is initialized to false
-  Offset? _anchorPosition;
   late AnimationController _controller;
   late Animation<double> _animation;
-
-  // Scale factors for the model
-  Map<String, double> _scaleFactors = {
-    'x': 1.0,
-    'y': 1.0,
-    'z': 1.0,
-  };
 
   @override
   void initState() {
@@ -88,126 +77,20 @@ class _ARViewScreenState extends State<ARViewScreen>
   void _selectConfig(ProstheticConfig config) {
     setState(() {
       _selectedConfig = config;
-      _isAnchored = false;
-      _isInARMode = false; // Important: Reset AR mode when selecting a config
-
-      // Update scale factors based on age and limb type
-      final limbType =
-          ProstheticScaler.getLimbTypeFromModelPath(config.modelPath);
-      _scaleFactors =
-          ProstheticScaler.getScaleFactorsForAge(config.patientAge, limbType);
-
-      print('Selected config with age: ${config.patientAge}');
-      print('Applied scale factors: $_scaleFactors for limb type: $limbType');
     });
   }
 
-  void _handleAnchorSelected(Offset position) {
-    setState(() {
-      _anchorPosition = position;
-      _isAnchored = true;
-    });
-  }
+  void _startARMode() {
+    if (_selectedConfig == null) {
+      _showErrorSnackBar('Please select a configuration first');
+      return;
+    }
 
-  void _toggleARMode() {
-    setState(() {
-      _isInARMode = !_isInARMode;
-      // Reset anchoring when toggling AR mode
-      if (!_isInARMode) {
-        _isAnchored = false;
-        _anchorPosition = null;
-      }
-    });
-  }
-
-  Widget _buildModelViewer({required String src}) {
-    return Stack(
-      children: [
-        // Base model viewer
-        ModelViewer(
-          src: src,
-          alt: "A 3D model",
-          ar: true,
-          arModes: const ['scene-viewer', 'webxr', 'quick-look'],
-          autoRotate: !_isAnchored,
-          cameraControls: !_isAnchored,
-          disableZoom: _isAnchored,
-          backgroundColor: const Color.fromARGB(255, 245, 245, 245),
-          relatedCss: '''
-           model-viewer {
-             --poster-color: transparent;
-             transform: scale3d(${_scaleFactors['x']}, ${_scaleFactors['y']}, ${_scaleFactors['z']});
-           }
-         ''',
-        ),
-
-        // AR mode toggle button - only show if not in AR mode
-        if (_selectedConfig != null && !_isInARMode)
-          Positioned(
-            top: 16,
-            right: 16,
-            child: FloatingActionButton.extended(
-              onPressed: _toggleARMode,
-              icon: Icon(Icons.view_in_ar),
-              label: Text('Start AR'),
-              backgroundColor: AppTheme.primaryColor,
-            ),
-          ),
-
-        // Only show body anchor overlay when in AR mode and not yet anchored
-        if (_selectedConfig != null && _isInARMode && !_isAnchored)
-          Positioned.fill(
-            child: BodyAnchorOverlay(
-              limbType: ProstheticScaler.getLimbTypeFromModelPath(
-                  _selectedConfig!.modelPath),
-              onAnchorSelected: _handleAnchorSelected,
-            ),
-          ),
-
-        // AR mode close button - only when in AR mode and not anchored
-        if (_selectedConfig != null && _isInARMode && !_isAnchored)
-          Positioned(
-            top: 16,
-            right: 16,
-            child: FloatingActionButton.small(
-              onPressed: _toggleARMode,
-              backgroundColor: Colors.white,
-              child: Icon(Icons.close, color: AppTheme.errorColor),
-            ),
-          ),
-
-        // Reset anchor button - only when anchored
-        if (_isAnchored)
-          Positioned(
-            top: 16,
-            right: 16,
-            child: FloatingActionButton.small(
-              onPressed: () {
-                setState(() {
-                  _isAnchored = false;
-                  _anchorPosition = null;
-                });
-              },
-              backgroundColor: Colors.white,
-              child: Icon(Icons.refresh, color: AppTheme.primaryColor),
-            ),
-          ),
-
-        // Anchored position indicator
-        if (_isAnchored && _anchorPosition != null)
-          Positioned(
-            left: _anchorPosition!.dx - 5,
-            top: _anchorPosition!.dy - 5,
-            child: Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                color: Colors.red,
-                shape: BoxShape.circle,
-              ),
-            ),
-          ),
-      ],
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => MediaPipeARView(selectedConfig: _selectedConfig),
+      ),
     );
   }
 
@@ -288,25 +171,51 @@ class _ARViewScreenState extends State<ARViewScreen>
       extendBodyBehindAppBar: false,
       body: Column(
         children: [
-          // Main content area (AR viewer)
+          // Main content area with instructions
           Expanded(
-            flex: 85, // Takes up most of the space
+            flex: 85,
             child: Stack(
               children: [
-                _selectedConfig == null
-                    ? _buildModelViewer(src: 'assets/cyborg.glb')
-                    : _buildModelViewer(src: _selectedConfig!.modelPath),
-
-                // AR Overlay Element - Guide Lines
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: CustomPaint(
-                      painter: ARGuidePainter(
-                        visible: !_showInstructions &&
-                            _selectedConfig != null &&
-                            _isInARMode &&
-                            !_isAnchored,
-                      ),
+                // Default prosthetic visualization
+                Center(
+                  child: Container(
+                    padding: EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: EdgeInsets.all(32),
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withOpacity(0.1),
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.view_in_ar,
+                            size: 64,
+                            color: AppTheme.primaryColor,
+                          ),
+                        ),
+                        SizedBox(height: 24),
+                        Text(
+                          'Select a Configuration to Start',
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryColor,
+                              ),
+                        ),
+                        SizedBox(height: 16),
+                        Text(
+                          'Choose a prosthetic configuration below\nto visualize in AR',
+                          style: TextStyle(
+                            color: AppTheme.subtitleColor,
+                            fontSize: 16,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -320,6 +229,7 @@ class _ARViewScreenState extends State<ARViewScreen>
                       ),
                     ),
                   ),
+
                 if (_showInstructions)
                   FadeTransition(
                     opacity: _animation,
@@ -376,17 +286,17 @@ class _ARViewScreenState extends State<ARViewScreen>
                                     ),
                                     _buildInstructionStep(
                                       'Start AR Mode',
-                                      'Press the Start AR button that appears',
+                                      'Press the Start AR button to open the camera view',
                                       Icons.play_arrow,
                                     ),
                                     _buildInstructionStep(
                                       'Place the Prosthetic',
-                                      'Tap on the screen where you want to position the prosthetic',
+                                      'Tap near body joints to anchor the prosthetic',
                                       Icons.touch_app,
                                     ),
                                     _buildInstructionStep(
-                                      'Verify Fit',
-                                      'Check that the prosthetic is properly sized based on patient age',
+                                      'Verify Position',
+                                      'Check that the prosthetic is properly placed',
                                       Icons.check_circle_outline,
                                     ),
                                     SizedBox(height: 24),
@@ -416,44 +326,23 @@ class _ARViewScreenState extends State<ARViewScreen>
                     ),
                   ),
 
-                // AR Status Indicator
-                if (!_showInstructions && !_isLoading)
+                // Start AR Button - moved higher up
+                if (_selectedConfig != null && !_showInstructions)
                   Positioned(
-                    top: 16,
-                    left: 16,
-                    child: Container(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _isInARMode
-                                ? (_isAnchored ? Icons.link : Icons.touch_app)
-                                : Icons.view_in_ar,
-                            size: 18,
-                            color: Colors.white,
-                          ),
-                          SizedBox(width: 6),
-                          Text(
-                            _selectedConfig != null
-                                ? _isInARMode
-                                    ? (_isAnchored
-                                        ? 'Anchored to Body'
-                                        : 'Tap to Place')
-                                    : 'Press Start AR'
-                                : 'No Model Selected',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                    bottom: 180, // Increased from 16 to 180 to avoid bottom bar
+                    right: 16,
+                    child: ElevatedButton.icon(
+                      onPressed: _startARMode,
+                      icon: Icon(Icons.view_in_ar),
+                      label: Text('Start AR'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryColor,
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 4,
                       ),
                     ),
                   ),
@@ -463,7 +352,7 @@ class _ARViewScreenState extends State<ARViewScreen>
 
           // Bottom configuration panel
           Container(
-            height: 110, // Reduced from 120 to fix overflow
+            height: 100,
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
@@ -478,17 +367,15 @@ class _ARViewScreenState extends State<ARViewScreen>
               ),
             ),
             child: SafeArea(
-              bottom: true, // Ensure safe area at the bottom
-              maintainBottomViewPadding: true, // Helps with bottom overflow
+              bottom: true,
               child: Padding(
-                padding: EdgeInsets.fromLTRB(16, 8, 16, 8), // Reduced padding
+                padding: EdgeInsets.fromLTRB(16, 4, 16, 4),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Padding(
-                      padding: EdgeInsets.only(
-                          left: 8, bottom: 6), // Reduced padding
+                      padding: EdgeInsets.only(left: 8, bottom: 6),
                       child: Text(
                         _savedConfigs.isEmpty
                             ? 'Create Your First Configuration'
@@ -504,7 +391,7 @@ class _ARViewScreenState extends State<ARViewScreen>
                         ? Container(
                             width: double.infinity,
                             child: ElevatedButton.icon(
-                              icon: Icon(Icons.add, size: 20), // Smaller icon
+                              icon: Icon(Icons.add, size: 20),
                               label: Text('Create Configuration'),
                               onPressed: () {
                                 Navigator.push(
@@ -516,8 +403,7 @@ class _ARViewScreenState extends State<ARViewScreen>
                                 ).then((_) => _loadSavedConfigs());
                               },
                               style: ElevatedButton.styleFrom(
-                                padding: EdgeInsets.symmetric(
-                                    vertical: 12), // Reduced padding
+                                padding: EdgeInsets.symmetric(vertical: 12),
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
                                 ),
@@ -526,7 +412,7 @@ class _ARViewScreenState extends State<ARViewScreen>
                             ),
                           )
                         : Container(
-                            height: 75, // Reduced height
+                            height: 65,
                             child: ListView.builder(
                               scrollDirection: Axis.horizontal,
                               itemCount: _savedConfigs.length,
@@ -559,9 +445,9 @@ class _ARViewScreenState extends State<ARViewScreen>
         borderRadius: BorderRadius.circular(15),
         child: AnimatedContainer(
           duration: Duration(milliseconds: 200),
-          width: 110, // Reduced width
-          height: 75, // Reduced height
-          padding: EdgeInsets.all(6), // Reduced padding
+          width: 100,
+          height: 65,
+          padding: EdgeInsets.all(6),
           decoration: BoxDecoration(
             color: isSelected ? AppTheme.primaryColor : AppTheme.surfaceColor,
             borderRadius: BorderRadius.circular(15),
@@ -585,7 +471,7 @@ class _ARViewScreenState extends State<ARViewScreen>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: EdgeInsets.all(5), // Reduced padding
+                padding: EdgeInsets.all(5),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? Colors.white.withOpacity(0.2)
@@ -595,28 +481,28 @@ class _ARViewScreenState extends State<ARViewScreen>
                 child: Icon(
                   Icons.view_in_ar,
                   color: isSelected ? Colors.white : AppTheme.primaryColor,
-                  size: 20, // Reduced size
+                  size: 20,
                 ),
               ),
-              SizedBox(height: 4), // Reduced spacing
+              SizedBox(height: 4),
               Text(
-                'Config ${config.id.substring(0, 4)}',
+                'Config ${_savedConfigs.indexOf(config) + 1}',
                 style: TextStyle(
                   color: isSelected ? Colors.white : AppTheme.textColor,
                   fontWeight: FontWeight.bold,
-                  fontSize: 11, // Reduced font size
+                  fontSize: 11,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              SizedBox(height: 1), // Reduced spacing
+              SizedBox(height: 1),
               Text(
-                'Age: ${config.patientAge}', // Display age
+                'Age: ${config.patientAge}',
                 style: TextStyle(
                   color: isSelected
                       ? Colors.white.withOpacity(0.8)
                       : AppTheme.subtitleColor,
-                  fontSize: 9, // Reduced font size
+                  fontSize: 9,
                 ),
               ),
             ],
@@ -662,23 +548,18 @@ class _ARViewScreenState extends State<ARViewScreen>
               ),
               _buildInstructionStep(
                 '2. Press Start AR',
-                'Tap the Start AR button to enter AR mode',
+                'Tap the Start AR button to open camera view',
                 Icons.play_arrow,
               ),
               _buildInstructionStep(
-                '3. Place Prosthetic',
-                'Tap where you want to attach the prosthetic',
-                Icons.touch_app,
-              ),
-              _buildInstructionStep(
-                '4. Check Sizing',
-                'Verify the prosthetic is properly scaled for patient age',
+                '3. Find Body Joints',
+                'The camera will automatically detect your pose',
                 Icons.person_outline,
               ),
               _buildInstructionStep(
-                '5. Adjust Position',
-                'Use reset button to reposition if needed',
-                Icons.refresh,
+                '4. Tap to Anchor',
+                'Tap near joints to attach the prosthetic',
+                Icons.touch_app,
               ),
             ],
           ),
@@ -698,102 +579,4 @@ class _ARViewScreenState extends State<ARViewScreen>
       ),
     );
   }
-}
-
-// AR Guide Painter class
-class ARGuidePainter extends CustomPainter {
-  final bool visible;
-
-  ARGuidePainter({required this.visible});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (!visible) return;
-
-    final paint = Paint()
-      ..color = Colors.white.withOpacity(0.4)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-
-    // Draw grid lines
-    final gridSpacing = 30.0;
-    final centerX = size.width / 2;
-    final centerY = size.height / 2;
-
-    // Horizontal grid lines
-    for (double y = 0; y < size.height; y += gridSpacing) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-
-    // Vertical grid lines
-    for (double x = 0; x < size.width; x += gridSpacing) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-
-    // Draw center crosshair
-    final crossPaint = Paint()
-      ..color = Colors.blue.withOpacity(0.6)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
-
-    final crossSize = 30.0;
-
-    // Horizontal line
-    canvas.drawLine(
-      Offset(centerX - crossSize, centerY),
-      Offset(centerX + crossSize, centerY),
-      crossPaint,
-    );
-
-    // Vertical line
-    canvas.drawLine(
-      Offset(centerX, centerY - crossSize),
-      Offset(centerX, centerY + crossSize),
-      crossPaint,
-    );
-
-    // Draw center circle
-    canvas.drawCircle(
-      Offset(centerX, centerY),
-      10.0,
-      Paint()
-        ..color = Colors.blue.withOpacity(0.3)
-        ..style = PaintingStyle.fill,
-    );
-
-    // Draw tap hint text
-    final textSpan = TextSpan(
-      text: "Tap to place model",
-      style: TextStyle(
-        color: Colors.white,
-        fontSize: 14,
-        fontWeight: FontWeight.bold,
-        shadows: [
-          Shadow(
-            offset: Offset(1, 1),
-            blurRadius: 3,
-            color: Colors.black45,
-          ),
-        ],
-      ),
-    );
-
-    final textPainter = TextPainter(
-      text: textSpan,
-      textDirection: TextDirection.ltr,
-      textAlign: TextAlign.center,
-    );
-
-    textPainter.layout();
-    textPainter.paint(
-      canvas,
-      Offset(
-        centerX - textPainter.width / 2,
-        centerY + crossSize + 10,
-      ),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

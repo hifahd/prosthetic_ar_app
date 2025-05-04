@@ -119,7 +119,8 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(result['message']),
-            backgroundColor: result['success'] == true ? Colors.green : Colors.orange,
+            backgroundColor:
+                result['success'] == true ? Colors.green : Colors.orange,
             duration: Duration(seconds: 5),
             behavior: SnackBarBehavior.floating,
           ),
@@ -131,7 +132,8 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
         return;
       }
 
-      if (result['missing_limbs'] != null && result['missing_limbs'].isNotEmpty) {
+      if (result['missing_limbs'] != null &&
+          result['missing_limbs'].isNotEmpty) {
         _showMeasurementResults(result['missing_limbs'][0]);
       } else {
         _showNoLimbsDetectedDialog();
@@ -184,7 +186,7 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
         : confidence > 0.5
             ? Colors.orange
             : Colors.red;
-            
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -220,7 +222,8 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('The system did not detect any specific prosthetic needs. This could be because:'),
+            Text(
+                'The system did not detect any specific prosthetic needs. This could be because:'),
             SizedBox(height: 8),
             Padding(
               padding: EdgeInsets.only(left: 8),
@@ -280,9 +283,10 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
 
   Widget _buildDetectionReasonsList(List<dynamic> reasons) {
     if (reasons == null || reasons.isEmpty) {
-      return Text("No specific detection criteria met - showing for demonstration");
+      return Text(
+          "No specific detection criteria met - showing for demonstration");
     }
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -294,22 +298,24 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
           ),
         ),
         SizedBox(height: 6),
-        ...reasons.map((reason) => Padding(
-          padding: const EdgeInsets.only(left: 8.0, bottom: 4.0),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(Icons.check_circle, size: 16, color: Colors.green),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  reason.toString(),
-                  style: TextStyle(color: Colors.grey[700]),
-                ),
-              ),
-            ],
-          ),
-        )).toList(),
+        ...reasons
+            .map((reason) => Padding(
+                  padding: const EdgeInsets.only(left: 8.0, bottom: 4.0),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.check_circle, size: 16, color: Colors.green),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          reason.toString(),
+                          style: TextStyle(color: Colors.grey[700]),
+                        ),
+                      ),
+                    ],
+                  ),
+                ))
+            .toList(),
       ],
     );
   }
@@ -401,17 +407,18 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
                               ],
                             ),
                             Divider(height: 24),
-                            
+
                             // Detection reasons (if available)
                             if (measurements.containsKey('detection_reasons'))
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  _buildDetectionReasonsList(measurements['detection_reasons']),
+                                  _buildDetectionReasonsList(
+                                      measurements['detection_reasons']),
                                   SizedBox(height: 16),
                                 ],
                               ),
-                              
+
                             _buildMeasurementRow(
                               'Length',
                               '${measurements['recommended_size']['length'].toStringAsFixed(1)} cm',
@@ -427,9 +434,9 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
                               '${measurements['recommended_size']['circumference'].toStringAsFixed(1)} cm',
                               Icons.radio_button_unchecked,
                             ),
-                            
+
                             // Asymmetry data if available
-                            if (measurements.containsKey('asymmetry_data') && 
+                            if (measurements.containsKey('asymmetry_data') &&
                                 measurements['asymmetry_data'] != null) ...[
                               Divider(height: 24),
                               Text(
@@ -451,7 +458,7 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
                                 Icons.compare_arrows,
                               ),
                             ],
-                            
+
                             if (measurements['distances'] != null) ...[
                               Divider(height: 24),
                               Text(
@@ -512,8 +519,10 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
         id: DateTime.now().millisecondsSinceEpoch.toString(),
         length: measurements['recommended_size']['length'] ?? 50.0,
         width: measurements['recommended_size']['width'] ?? 10.0,
-        circumferenceTop: measurements['recommended_size']['circumference'] ?? 30.0,
-        circumferenceBottom: (measurements['recommended_size']['circumference'] ?? 30.0) * 0.8,
+        circumferenceTop:
+            measurements['recommended_size']['circumference'] ?? 30.0,
+        circumferenceBottom:
+            (measurements['recommended_size']['circumference'] ?? 30.0) * 0.8,
         kneeFlexion: 0.0, // Default value since it's not measured
         color: Colors.grey[600]!,
         material: 'Titanium',
@@ -529,7 +538,8 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
       }
 
       configs.add(config);
-      await prefs.setString('prosthetic_configs', ProstheticConfig.encode(configs));
+      await prefs.setString(
+          'prosthetic_configs', ProstheticConfig.encode(configs));
 
       Navigator.of(context).pop(); // Close bottom sheet
       Navigator.of(context).pop(); // Return to previous screen

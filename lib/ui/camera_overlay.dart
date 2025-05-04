@@ -3,10 +3,14 @@ import 'package:flutter/material.dart';
 class CameraOverlay extends CustomPainter {
   final Color guideColor;
   final double opacity;
+  final List<Offset> bodyPoints;
+  final Offset? anchorPosition;
 
   CameraOverlay({
     this.guideColor = Colors.white,
     this.opacity = 0.7,
+    this.bodyPoints = const [],
+    this.anchorPosition,
   });
 
   @override
@@ -20,64 +24,68 @@ class CameraOverlay extends CustomPainter {
       ..color = guideColor.withOpacity(opacity)
       ..style = PaintingStyle.fill;
 
-    // Screen dimensions
-    final double width = size.width;
-    final double height = size.height;
+    // Draw guide lines for body positioning
+    final centerX = size.width / 2;
+    final centerY = size.height / 2;
 
-    // Draw body outline
-    var path = Path();
-
-    // Head circle
-    canvas.drawCircle(
-      Offset(width * 0.5, height * 0.15),
-      width * 0.08,
+    // Horizontal guide line
+    canvas.drawLine(
+      Offset(0, centerY),
+      Offset(size.width, centerY),
       paint,
     );
 
-    // Body outline
-    path.moveTo(width * 0.4, height * 0.25); // Left shoulder
-    path.lineTo(width * 0.6, height * 0.25); // Right shoulder
-    path.lineTo(width * 0.65, height * 0.8); // Right hip
-    path.lineTo(width * 0.35, height * 0.8); // Left hip
-    path.close();
+    // Vertical guide line
+    canvas.drawLine(
+      Offset(centerX, 0),
+      Offset(centerX, size.height),
+      paint,
+    );
 
-    // Left arm
-    path.moveTo(width * 0.4, height * 0.25); // Shoulder
-    path.lineTo(width * 0.3, height * 0.45); // Elbow
-    path.lineTo(width * 0.25, height * 0.6); // Hand
+    // Draw body outline guidance
+    final bodyPath = Path();
 
-    // Right arm
-    path.moveTo(width * 0.6, height * 0.25); // Shoulder
-    path.lineTo(width * 0.7, height * 0.45); // Elbow
-    path.lineTo(width * 0.75, height * 0.6); // Hand
+    // Head circle
+    canvas.drawCircle(
+      Offset(centerX, size.height * 0.15),
+      size.width * 0.06,
+      paint,
+    );
 
-    // Left leg
-    path.moveTo(width * 0.35, height * 0.8); // Hip
-    path.lineTo(width * 0.3, height * 0.9); // Knee
-    path.lineTo(width * 0.35, height); // Foot
+    // Body silhouette guidance
+    bodyPath.moveTo(
+        centerX - size.width * 0.1, size.height * 0.25); // Left shoulder
+    bodyPath.lineTo(
+        centerX + size.width * 0.1, size.height * 0.25); // Right shoulder
+    bodyPath.lineTo(
+        centerX + size.width * 0.12, size.height * 0.7); // Right hip
+    bodyPath.lineTo(centerX - size.width * 0.12, size.height * 0.7); // Left hip
+    bodyPath.close();
 
-    // Right leg
-    path.moveTo(width * 0.65, height * 0.8); // Hip
-    path.lineTo(width * 0.7, height * 0.9); // Knee
-    path.lineTo(width * 0.65, height); // Foot
+    canvas.drawPath(bodyPath, paint);
 
-    canvas.drawPath(path, paint);
-
-    // Draw key measurement points
-    final points = [
-      Offset(width * 0.3, height * 0.9), // Left knee
-      Offset(width * 0.7, height * 0.9), // Right knee
-      Offset(width * 0.35, height), // Left ankle
-      Offset(width * 0.65, height), // Right ankle
-    ];
-
-    for (var point in points) {
+    // Draw detected body points if available
+    for (var point in bodyPoints) {
       canvas.drawCircle(point, 5, dotPaint);
+      canvas.drawCircle(point, 8, paint);
     }
 
-    // Draw guide text
+    // Draw anchor point if selected
+    if (anchorPosition != null) {
+      final anchorPaint = Paint()
+        ..color = Colors.red
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3.0;
+
+      canvas.drawCircle(anchorPosition!, 15, anchorPaint);
+      canvas.drawCircle(anchorPosition!, 5, Paint()..color = Colors.red);
+    }
+
+    // Draw instruction text
     final textSpan = TextSpan(
-      text: 'Align your body with the outline',
+      text: anchorPosition == null
+          ? 'Align your body with the guide'
+          : 'Prosthetic anchored',
       style: TextStyle(
         color: guideColor,
         fontSize: 16,
@@ -89,16 +97,16 @@ class CameraOverlay extends CustomPainter {
       textAlign: TextAlign.center,
       textDirection: TextDirection.ltr,
     );
-    textPainter.layout(maxWidth: width * 0.8);
+    textPainter.layout(maxWidth: size.width * 0.8);
     textPainter.paint(
       canvas,
       Offset(
-        (width - textPainter.width) / 2,
-        height * 0.05,
+        (size.width - textPainter.width) / 2,
+        size.height * 0.05,
       ),
     );
   }
 
   @override
-  bool shouldRepaint(CustomPainter oldDelegate) => false;
+  bool shouldRepaint(CustomPainter oldDelegate) => true;
 }
