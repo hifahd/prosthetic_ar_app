@@ -198,13 +198,10 @@ class _ARViewScreenState extends State<ARViewScreen>
                         SizedBox(height: 24),
                         Text(
                           'Select a Configuration to Start',
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineSmall
-                              ?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primaryColor,
-                              ),
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: AppTheme.primaryColor,
+                          ),
                         ),
                         SizedBox(height: 16),
                         Text(
@@ -326,23 +323,24 @@ class _ARViewScreenState extends State<ARViewScreen>
                     ),
                   ),
 
-                // Start AR Button - moved higher up
+                // Start AR Button - fixed positioning
                 if (_selectedConfig != null && !_showInstructions)
-                  Positioned(
-                    bottom: 180, // Increased from 16 to 180 to avoid bottom bar
-                    right: 16,
-                    child: ElevatedButton.icon(
-                      onPressed: _startARMode,
-                      icon: Icon(Icons.view_in_ar),
-                      label: Text('Start AR'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryColor,
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
+                  Align(
+                    alignment: Alignment.bottomRight,
+                    child: Padding(
+                      padding: EdgeInsets.only(right: 16.0, bottom: 120.0), // Above bottom panel
+                      child: ElevatedButton.icon(
+                        onPressed: _startARMode,
+                        icon: Icon(Icons.view_in_ar),
+                        label: Text('Start AR'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.primaryColor,
+                          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 4,
                         ),
-                        elevation: 4,
                       ),
                     ),
                   ),
