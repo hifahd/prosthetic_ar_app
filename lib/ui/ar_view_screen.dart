@@ -198,10 +198,13 @@ class _ARViewScreenState extends State<ARViewScreen>
                         SizedBox(height: 24),
                         Text(
                           'Select a Configuration to Start',
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: AppTheme.primaryColor,
-                          ),
+                          style: Theme.of(context)
+                              .textTheme
+                              .headlineSmall
+                              ?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppTheme.primaryColor,
+                              ),
                         ),
                         SizedBox(height: 16),
                         Text(
@@ -288,13 +291,18 @@ class _ARViewScreenState extends State<ARViewScreen>
                                     ),
                                     _buildInstructionStep(
                                       'Place the Prosthetic',
-                                      'Tap near body joints to anchor the prosthetic',
+                                      'Tap near body joints to anchor the prosthetic. If joints aren\'t being detected, use Manual Mode.',
                                       Icons.touch_app,
                                     ),
                                     _buildInstructionStep(
-                                      'Verify Position',
-                                      'Check that the prosthetic is properly placed',
-                                      Icons.check_circle_outline,
+                                      'Try Different Positions',
+                                      'Stand in a well-lit area with a neutral background for best results',
+                                      Icons.accessibility_new,
+                                    ),
+                                    _buildInstructionStep(
+                                      'Use Manual Mode',
+                                      'If automatic detection doesn\'t work, use the Manual Mode button in the top bar',
+                                      Icons.touch_app,
                                     ),
                                     SizedBox(height: 24),
                                     ElevatedButton(
@@ -328,14 +336,16 @@ class _ARViewScreenState extends State<ARViewScreen>
                   Align(
                     alignment: Alignment.bottomRight,
                     child: Padding(
-                      padding: EdgeInsets.only(right: 16.0, bottom: 120.0), // Above bottom panel
+                      padding: EdgeInsets.only(
+                          right: 16.0, bottom: 120.0), // Above bottom panel
                       child: ElevatedButton.icon(
                         onPressed: _startARMode,
                         icon: Icon(Icons.view_in_ar),
                         label: Text('Start AR'),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.primaryColor,
-                          padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 12),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
                           ),
@@ -555,8 +565,18 @@ class _ARViewScreenState extends State<ARViewScreen>
                 Icons.person_outline,
               ),
               _buildInstructionStep(
-                '4. Tap to Anchor',
-                'Tap near joints to attach the prosthetic',
+                '4. Try Good Lighting',
+                'Stand in a well-lit area with minimal background clutter',
+                Icons.wb_sunny,
+              ),
+              _buildInstructionStep(
+                '5. Use Manual Mode',
+                'If detection fails, tap the Manual Mode button in the top bar',
+                Icons.touch_app,
+              ),
+              _buildInstructionStep(
+                '6. Tap to Anchor',
+                'Tap near joints (or anywhere in Manual Mode) to attach prosthetic',
                 Icons.touch_app,
               ),
             ],
