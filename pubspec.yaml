@@ -25,7 +25,8 @@ dependencies:
   path: ^1.8.3
   local_auth: ^2.3.0
   google_mlkit_pose_detection: ^0.12.0
-  logger: ^2.0.2  # Added for better logging
+  logger: ^2.0.2
+  model_viewer_plus: ^1.5.0  # Added for 3D model viewing
   
 dev_dependencies:
   flutter_test:

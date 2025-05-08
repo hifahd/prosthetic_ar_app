@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/prosthetic_config.dart';
 import '../theme/app_theme.dart';
+import 'prosthetic_3d_preview.dart';
 import '../widgets/custom_bottom_nav.dart';
 
 class CustomizeProstheticScreen extends StatefulWidget {
@@ -272,7 +273,7 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
             bottom: false,
             child: Column(
               children: [
-                // 3D Preview Section - replaced with a placeholder
+                // 3D Preview Section - Using ModelViewer instead of placeholder
                 Container(
                   height: MediaQuery.of(context).size.height * 0.35,
                   padding: EdgeInsets.all(16),
@@ -288,26 +289,13 @@ class _CustomizeProstheticScreenState extends State<CustomizeProstheticScreen> {
                         ),
                       ],
                     ),
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.view_in_ar,
-                            size: 64,
-                            color: AppTheme.primaryColor,
-                          ),
-                          SizedBox(height: 16),
-                          Text(
-                            'Prosthetic Preview',
-                            style: AppTheme.subheadingStyle,
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            _currentModelPath.split('/').last,
-                            style: AppTheme.captionStyle,
-                          ),
-                        ],
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(20),
+                      child: Prosthetic3DPreview(
+                        modelPath: _currentModelPath,
+                        length: _length,
+                        width: _width,
+                        color: _mainColor,
                       ),
                     ),
                   ),

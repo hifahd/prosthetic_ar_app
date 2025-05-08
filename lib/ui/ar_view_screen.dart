@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:model_viewer_plus/model_viewer_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/prosthetic_config.dart';
 import '../theme/app_theme.dart';
-import '../utils/prosthetic_scaler.dart';
 import 'customize_prosthetic_screen.dart';
 import 'mediapipe_ar_view.dart';
 
@@ -80,7 +80,8 @@ class _ARViewScreenState extends State<ARViewScreen>
     });
   }
 
-  void _startARMode() {
+  // This function now launches MediaPipeARView instead of AR mode in ModelViewer
+  void _startAR() {
     if (_selectedConfig == null) {
       _showErrorSnackBar('Please select a configuration first');
       return;
@@ -91,6 +92,18 @@ class _ARViewScreenState extends State<ARViewScreen>
       MaterialPageRoute(
         builder: (context) => MediaPipeARView(selectedConfig: _selectedConfig),
       ),
+    );
+  }
+
+  Widget _buildModelViewer({required String src}) {
+    return ModelViewer(
+      src: src,
+      alt: "A 3D model",
+      ar: false, // Disable AR in ModelViewer as we'll use MediaPipe
+      autoRotate: true,
+      cameraControls: true,
+      disableZoom: false,
+      backgroundColor: const Color.fromARGB(255, 245, 245, 245),
     );
   }
 
@@ -171,54 +184,26 @@ class _ARViewScreenState extends State<ARViewScreen>
       extendBodyBehindAppBar: false,
       body: Column(
         children: [
-          // Main content area with instructions
+          // Main content area (AR viewer)
           Expanded(
-            flex: 85,
+            flex: 85, // Takes up most of the space
             child: Stack(
               children: [
-                // Default prosthetic visualization
-                Center(
-                  child: Container(
-                    padding: EdgeInsets.all(32),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: EdgeInsets.all(32),
-                          decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withOpacity(0.1),
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            Icons.view_in_ar,
-                            size: 64,
-                            color: AppTheme.primaryColor,
-                          ),
+                _selectedConfig == null
+                    ? _buildModelViewer(src: 'assets/cyborg.glb')
+                    : _buildModelViewer(src: _selectedConfig!.modelPath),
+
+                // AR Overlay Element - Guide Lines
+                if (!_showInstructions && _selectedConfig != null)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: CustomPaint(
+                        painter: ARGuidePainter(
+                          visible: true,
                         ),
-                        SizedBox(height: 24),
-                        Text(
-                          'Select a Configuration to Start',
-                          style: Theme.of(context)
-                              .textTheme
-                              .headlineSmall
-                              ?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: AppTheme.primaryColor,
-                              ),
-                        ),
-                        SizedBox(height: 16),
-                        Text(
-                          'Choose a prosthetic configuration below\nto visualize in AR',
-                          style: TextStyle(
-                            color: AppTheme.subtitleColor,
-                            fontSize: 16,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
+                      ),
                     ),
                   ),
-                ),
 
                 if (_isLoading)
                   Container(
@@ -229,7 +214,6 @@ class _ARViewScreenState extends State<ARViewScreen>
                       ),
                     ),
                   ),
-
                 if (_showInstructions)
                   FadeTransition(
                     opacity: _animation,
@@ -280,8 +264,8 @@ class _ARViewScreenState extends State<ARViewScreen>
                                     ),
                                     SizedBox(height: 24),
                                     _buildInstructionStep(
-                                      'Select a Configuration',
-                                      'Choose a saved prosthetic configuration from the bottom panel',
+                                      'Select Configuration',
+                                      'Choose a prosthetic configuration from the bottom panel',
                                       Icons.settings,
                                     ),
                                     _buildInstructionStep(
@@ -298,11 +282,6 @@ class _ARViewScreenState extends State<ARViewScreen>
                                       'Try Different Positions',
                                       'Stand in a well-lit area with a neutral background for best results',
                                       Icons.accessibility_new,
-                                    ),
-                                    _buildInstructionStep(
-                                      'Use Manual Mode',
-                                      'If automatic detection doesn\'t work, use the Manual Mode button in the top bar',
-                                      Icons.touch_app,
                                     ),
                                     SizedBox(height: 24),
                                     ElevatedButton(
@@ -331,7 +310,43 @@ class _ARViewScreenState extends State<ARViewScreen>
                     ),
                   ),
 
-                // Start AR Button - fixed positioning
+                // AR Status Indicator
+                if (!_showInstructions && !_isLoading)
+                  Positioned(
+                    top: 16,
+                    right: 16,
+                    child: Container(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.view_in_ar,
+                            size: 18,
+                            color: Colors.white,
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            _selectedConfig != null
+                                ? 'Model Ready'
+                                : 'No Model Selected',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                // Start AR Button - Using the existing button style and position from original code
                 if (_selectedConfig != null && !_showInstructions)
                   Align(
                     alignment: Alignment.bottomRight,
@@ -339,7 +354,7 @@ class _ARViewScreenState extends State<ARViewScreen>
                       padding: EdgeInsets.only(
                           right: 16.0, bottom: 120.0), // Above bottom panel
                       child: ElevatedButton.icon(
-                        onPressed: _startARMode,
+                        onPressed: _startAR,
                         icon: Icon(Icons.view_in_ar),
                         label: Text('Start AR'),
                         style: ElevatedButton.styleFrom(
@@ -597,4 +612,102 @@ class _ARViewScreenState extends State<ARViewScreen>
       ),
     );
   }
+}
+
+// AR Guide Painter class from previous implementation for visual guidelines
+class ARGuidePainter extends CustomPainter {
+  final bool visible;
+
+  ARGuidePainter({required this.visible});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (!visible) return;
+
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.4)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    // Draw grid lines
+    final gridSpacing = 30.0;
+    final centerX = size.width / 2;
+    final centerY = size.height / 2;
+
+    // Horizontal grid lines
+    for (double y = 0; y < size.height; y += gridSpacing) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+
+    // Vertical grid lines
+    for (double x = 0; x < size.width; x += gridSpacing) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+
+    // Draw center crosshair
+    final crossPaint = Paint()
+      ..color = Colors.blue.withOpacity(0.6)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+
+    final crossSize = 30.0;
+
+    // Horizontal line
+    canvas.drawLine(
+      Offset(centerX - crossSize, centerY),
+      Offset(centerX + crossSize, centerY),
+      crossPaint,
+    );
+
+    // Vertical line
+    canvas.drawLine(
+      Offset(centerX, centerY - crossSize),
+      Offset(centerX, centerY + crossSize),
+      crossPaint,
+    );
+
+    // Draw center circle
+    canvas.drawCircle(
+      Offset(centerX, centerY),
+      10.0,
+      Paint()
+        ..color = Colors.blue.withOpacity(0.3)
+        ..style = PaintingStyle.fill,
+    );
+
+    // Draw tap hint text
+    final textSpan = TextSpan(
+      text: "Tap to place model",
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: 14,
+        fontWeight: FontWeight.bold,
+        shadows: [
+          Shadow(
+            offset: Offset(1, 1),
+            blurRadius: 3,
+            color: Colors.black45,
+          ),
+        ],
+      ),
+    );
+
+    final textPainter = TextPainter(
+      text: textSpan,
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+    );
+
+    textPainter.layout();
+    textPainter.paint(
+      canvas,
+      Offset(
+        centerX - textPainter.width / 2,
+        centerY + crossSize + 10,
+      ),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
