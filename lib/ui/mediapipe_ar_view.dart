@@ -221,66 +221,25 @@ class _MediaPipeARViewState extends State<MediaPipeARView>
 
   InputImage? _convertCameraImage(CameraImage image) {
     try {
-      // Create InputImage using platform-specific approach
-      if (Platform.isAndroid) {
-        // For Android, using YUV format (nv21)
-        final bytes = Uint8List.fromList(image.planes[0].bytes);
-        final imageRotation = InputImageRotationValue.fromRawValue(
-                _cameraController!.description.sensorOrientation) ??
-            InputImageRotation.rotation0deg;
+      // Simplified approach for creating InputImage
+      final bytes = Uint8List.fromList(image.planes[0].bytes);
 
-        final inputImageFormat = InputImageFormat.nv21;
+      final imageSize = Size(
+        image.width.toDouble(),
+        image.height.toDouble(),
+      );
 
-        final inputImageData = InputImageData(
-          size: Size(image.width.toDouble(), image.height.toDouble()),
-          imageRotation: imageRotation,
-          inputImageFormat: inputImageFormat,
-          planeData: image.planes.map((plane) {
-            return InputImagePlaneMetadata(
-              bytesPerRow: plane.bytesPerRow,
-              height: plane.height ?? 0,
-              width: plane.width ?? 0,
-            );
-          }).toList(),
-        );
+      final imageRotation = InputImageRotation.rotation0deg;
+      final inputImageFormat = InputImageFormat.nv21;
 
-        return InputImage.fromBytes(
-          bytes: bytes,
-          inputImageData: inputImageData,
-        );
-      } else if (Platform.isIOS) {
-        // For iOS, using BGRA format
-        final planes = image.planes;
-        final width = image.width;
-        final height = image.height;
-        final bytes = planes[0].bytes;
+      final metadata = InputImageMetadata(
+        size: imageSize,
+        rotation: imageRotation,
+        format: inputImageFormat,
+        bytesPerRow: image.planes[0].bytesPerRow,
+      );
 
-        final imageRotation = InputImageRotationValue.fromRawValue(
-                _cameraController!.description.sensorOrientation) ??
-            InputImageRotation.rotation0deg;
-
-        final inputImageFormat = InputImageFormat.bgra8888;
-
-        final inputImageData = InputImageData(
-          size: Size(width.toDouble(), height.toDouble()),
-          imageRotation: imageRotation,
-          inputImageFormat: inputImageFormat,
-          planeData: image.planes.map((plane) {
-            return InputImagePlaneMetadata(
-              bytesPerRow: plane.bytesPerRow,
-              height: plane.height ?? 0,
-              width: plane.width ?? 0,
-            );
-          }).toList(),
-        );
-
-        return InputImage.fromBytes(
-          bytes: bytes,
-          inputImageData: inputImageData,
-        );
-      }
-
-      return null;
+      return InputImage.fromBytes(bytes: bytes, metadata: metadata);
     } catch (e) {
       print('Error converting camera image: $e');
       return null;
@@ -658,7 +617,7 @@ class _MediaPipeARViewState extends State<MediaPipeARView>
             showDebugInfo: _showDebugInfo,
           ),
 
-        // Prosthetic model overlay - Now using actual 3D model
+        // Prosthetic model overlay
         if (_anchorPosition != null && widget.selectedConfig != null)
           _ARModelOverlay(
             anchorPosition: _anchorPosition!,
@@ -932,7 +891,7 @@ class _PosePainter extends CustomPainter {
     final scaleY = screenSize.height / imageSize.height;
     final scale = math.min(scaleX, scaleY);
 
-// Calculate offset to center image
+    // Calculate offset to center image
     final offsetX = (screenSize.width - imageSize.width * scale) / 2;
     final offsetY = (screenSize.height - imageSize.height * scale) / 2;
 
