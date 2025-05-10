@@ -80,7 +80,6 @@ class _ARViewScreenState extends State<ARViewScreen>
     });
   }
 
-  // This function now launches MediaPipeARView instead of AR mode in ModelViewer
   void _startAR() {
     if (_selectedConfig == null) {
       _showErrorSnackBar('Please select a configuration first');
@@ -99,7 +98,7 @@ class _ARViewScreenState extends State<ARViewScreen>
     return ModelViewer(
       src: src,
       alt: "A 3D model",
-      ar: false, // Disable AR in ModelViewer as we'll use MediaPipe
+      ar: false,
       autoRotate: true,
       cameraControls: true,
       disableZoom: false,
@@ -186,21 +185,45 @@ class _ARViewScreenState extends State<ARViewScreen>
         children: [
           // Main content area (AR viewer)
           Expanded(
-            flex: 85, // Takes up most of the space
+            flex: 85,
             child: Stack(
               children: [
                 _selectedConfig == null
                     ? _buildModelViewer(src: 'assets/cyborg.glb')
                     : _buildModelViewer(src: _selectedConfig!.modelPath),
 
-                // AR Overlay Element - Guide Lines
-                if (!_showInstructions && _selectedConfig != null)
-                  Positioned.fill(
-                    child: IgnorePointer(
-                      child: CustomPaint(
-                        painter: ARGuidePainter(
-                          visible: true,
-                        ),
+                // AR Status Indicator - Only show when a model is selected
+                if (!_showInstructions && !_isLoading)
+                  Positioned(
+                    top: 16,
+                    right: 16,
+                    child: Container(
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black54,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.view_in_ar,
+                            size: 18,
+                            color: Colors.white,
+                          ),
+                          SizedBox(width: 6),
+                          Text(
+                            _selectedConfig != null
+                                ? 'Model Ready'
+                                : 'No Model Selected',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.white,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -310,61 +333,34 @@ class _ARViewScreenState extends State<ARViewScreen>
                     ),
                   ),
 
-                // AR Status Indicator
-                if (!_showInstructions && !_isLoading)
+                // Start AR Button - Only show when a model is selected and instructions are dismissed
+                if (_selectedConfig != null && !_showInstructions)
                   Positioned(
-                    top: 16,
-                    right: 16,
-                    child: Container(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.view_in_ar,
-                            size: 18,
-                            color: Colors.white,
-                          ),
-                          SizedBox(width: 6),
-                          Text(
-                            _selectedConfig != null
-                                ? 'Model Ready'
-                                : 'No Model Selected',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w500,
+                    left: 0,
+                    right: 0,
+                    bottom: 120,
+                    child: Center(
+                      child: Container(
+                        width: MediaQuery.of(context).size.width * 0.7,
+                        child: ElevatedButton(
+                          onPressed: _startAR,
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            child: Text(
+                              'Start AR',
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                // Start AR Button - Using the existing button style and position from original code
-                if (_selectedConfig != null && !_showInstructions)
-                  Align(
-                    alignment: Alignment.bottomRight,
-                    child: Padding(
-                      padding: EdgeInsets.only(
-                          right: 16.0, bottom: 120.0), // Above bottom panel
-                      child: ElevatedButton.icon(
-                        onPressed: _startAR,
-                        icon: Icon(Icons.view_in_ar),
-                        label: Text('Start AR'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.primaryColor,
-                          padding: EdgeInsets.symmetric(
-                              horizontal: 24, vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.primaryColor,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 4,
                           ),
-                          elevation: 4,
                         ),
                       ),
                     ),
@@ -373,9 +369,9 @@ class _ARViewScreenState extends State<ARViewScreen>
             ),
           ),
 
-          // Bottom configuration panel
+          // Bottom configuration panel - Fixed height to avoid overflow
           Container(
-            height: 100,
+            height: 120,
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
@@ -391,8 +387,9 @@ class _ARViewScreenState extends State<ARViewScreen>
             ),
             child: SafeArea(
               bottom: true,
+              maintainBottomViewPadding: true,
               child: Padding(
-                padding: EdgeInsets.fromLTRB(16, 4, 16, 4),
+                padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
@@ -435,7 +432,7 @@ class _ARViewScreenState extends State<ARViewScreen>
                             ),
                           )
                         : Container(
-                            height: 65,
+                            height: 70,
                             child: ListView.builder(
                               scrollDirection: Axis.horizontal,
                               itemCount: _savedConfigs.length,
@@ -468,8 +465,8 @@ class _ARViewScreenState extends State<ARViewScreen>
         borderRadius: BorderRadius.circular(15),
         child: AnimatedContainer(
           duration: Duration(milliseconds: 200),
-          width: 100,
-          height: 65,
+          width: 110, // Fixed width to prevent overflow
+          height: 70, // Fixed height
           padding: EdgeInsets.all(6),
           decoration: BoxDecoration(
             color: isSelected ? AppTheme.primaryColor : AppTheme.surfaceColor,
@@ -612,102 +609,4 @@ class _ARViewScreenState extends State<ARViewScreen>
       ),
     );
   }
-}
-
-// AR Guide Painter class from previous implementation for visual guidelines
-class ARGuidePainter extends CustomPainter {
-  final bool visible;
-
-  ARGuidePainter({required this.visible});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    if (!visible) return;
-
-    final paint = Paint()
-      ..color = Colors.white.withOpacity(0.4)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.5;
-
-    // Draw grid lines
-    final gridSpacing = 30.0;
-    final centerX = size.width / 2;
-    final centerY = size.height / 2;
-
-    // Horizontal grid lines
-    for (double y = 0; y < size.height; y += gridSpacing) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
-    }
-
-    // Vertical grid lines
-    for (double x = 0; x < size.width; x += gridSpacing) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
-    }
-
-    // Draw center crosshair
-    final crossPaint = Paint()
-      ..color = Colors.blue.withOpacity(0.6)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.0;
-
-    final crossSize = 30.0;
-
-    // Horizontal line
-    canvas.drawLine(
-      Offset(centerX - crossSize, centerY),
-      Offset(centerX + crossSize, centerY),
-      crossPaint,
-    );
-
-    // Vertical line
-    canvas.drawLine(
-      Offset(centerX, centerY - crossSize),
-      Offset(centerX, centerY + crossSize),
-      crossPaint,
-    );
-
-    // Draw center circle
-    canvas.drawCircle(
-      Offset(centerX, centerY),
-      10.0,
-      Paint()
-        ..color = Colors.blue.withOpacity(0.3)
-        ..style = PaintingStyle.fill,
-    );
-
-    // Draw tap hint text
-    final textSpan = TextSpan(
-      text: "Tap to place model",
-      style: TextStyle(
-        color: Colors.white,
-        fontSize: 14,
-        fontWeight: FontWeight.bold,
-        shadows: [
-          Shadow(
-            offset: Offset(1, 1),
-            blurRadius: 3,
-            color: Colors.black45,
-          ),
-        ],
-      ),
-    );
-
-    final textPainter = TextPainter(
-      text: textSpan,
-      textDirection: TextDirection.ltr,
-      textAlign: TextAlign.center,
-    );
-
-    textPainter.layout();
-    textPainter.paint(
-      canvas,
-      Offset(
-        centerX - textPainter.width / 2,
-        centerY + crossSize + 10,
-      ),
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

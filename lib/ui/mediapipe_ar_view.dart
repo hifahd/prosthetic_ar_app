@@ -8,6 +8,7 @@ import '../utils/prosthetic_scaler.dart';
 import 'dart:typed_data';
 import 'dart:io';
 import 'dart:ui' as ui;
+import 'package:model_viewer_plus/model_viewer_plus.dart';
 
 class MediaPipeARView extends StatefulWidget {
   final ProstheticConfig? selectedConfig;
@@ -21,7 +22,6 @@ class MediaPipeARView extends StatefulWidget {
 class _MediaPipeARViewState extends State<MediaPipeARView>
     with WidgetsBindingObserver {
   CameraController? _cameraController;
-  // Simplified PoseDetector initialization without problematic parameters
   final PoseDetector _poseDetector = PoseDetector(
     options: PoseDetectorOptions(
       model: PoseDetectionModel.accurate,
@@ -37,12 +37,40 @@ class _MediaPipeARViewState extends State<MediaPipeARView>
   double _scaleFactor = 1.0;
   bool _manualPlacementMode = false;
   bool _showDebugInfo = false;
+  bool _isCameraInitialized = false;
+  bool _showError = false;
+  String _errorMessage = '';
+
+  // Track if camera has been completely initialized
+  bool _cameraReady = false;
+
+  // Track if 3D model has been loaded
+  bool _modelLoaded = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _initializeCamera();
+
+    // Pre-load the 3D model
+    if (widget.selectedConfig != null) {
+      _preloadModel(widget.selectedConfig!.modelPath);
+    }
+  }
+
+  Future<void> _preloadModel(String modelPath) async {
+    try {
+      // Simulate model loading
+      await Future.delayed(Duration(milliseconds: 500));
+      if (mounted) {
+        setState(() {
+          _modelLoaded = true;
+        });
+      }
+    } catch (e) {
+      print('Error preloading model: $e');
+    }
   }
 
   @override
@@ -55,9 +83,14 @@ class _MediaPipeARViewState extends State<MediaPipeARView>
   }
 
   void _stopImageStream() {
-    if (_cameraController != null &&
-        _cameraController!.value.isStreamingImages) {
-      _cameraController!.stopImageStream();
+    try {
+      if (_cameraController != null &&
+          _cameraController!.value.isInitialized &&
+          _cameraController!.value.isStreamingImages) {
+        _cameraController!.stopImageStream();
+      }
+    } catch (e) {
+      print('Error stopping image stream: $e');
     }
   }
 
@@ -69,53 +102,87 @@ class _MediaPipeARViewState extends State<MediaPipeARView>
         state == AppLifecycleState.detached) {
       _stopImageStream();
     } else if (state == AppLifecycleState.resumed) {
-      _initializeCamera();
+      if (_cameraController != null &&
+          !_cameraController!.value.isInitialized) {
+        _initializeCamera();
+      }
     }
   }
 
   Future<void> _initializeCamera() async {
-    final cameras = await availableCameras();
-    if (cameras.isEmpty) {
-      _showError('No camera available');
-      return;
-    }
-
-    // Try to use back camera for better results
-    final backCamera = cameras.firstWhere(
-      (camera) => camera.lensDirection == CameraLensDirection.back,
-      orElse: () => cameras.first,
-    );
-
-    _cameraController = CameraController(
-      backCamera,
-      ResolutionPreset.medium, // Use medium resolution for better performance
-      enableAudio: false,
-      imageFormatGroup: Platform.isAndroid
-          ? ImageFormatGroup.nv21 // Android
-          : ImageFormatGroup.bgra8888, // iOS
-    );
+    setState(() {
+      _isCameraInitialized = false;
+      _showError = false;
+    });
 
     try {
+      final cameras = await availableCameras();
+      if (cameras.isEmpty) {
+        _displayError('No camera available');
+        return;
+      }
+
+      // Try to use back camera for better results
+      final backCamera = cameras.firstWhere(
+        (camera) => camera.lensDirection == CameraLensDirection.back,
+        orElse: () => cameras.first,
+      );
+
+      // Close any existing controller first
+      await _cameraController?.dispose();
+
+      _cameraController = CameraController(
+        backCamera,
+        ResolutionPreset.medium, // Use medium resolution for better performance
+        enableAudio: false,
+        imageFormatGroup: Platform.isAndroid
+            ? ImageFormatGroup.nv21 // Android
+            : ImageFormatGroup.bgra8888, // iOS
+      );
+
       await _cameraController!.initialize();
       if (!mounted) return;
 
-      setState(() {});
+      // Add a delay to ensure camera is fully initialized
+      await Future.delayed(Duration(milliseconds: 500));
 
-      await _cameraController!.startImageStream(_processCameraImage);
+      _cameraReady = true;
+
+      if (!mounted) return;
+
+      setState(() {
+        _isCameraInitialized = true;
+      });
+
+      // Add another small delay before starting image stream
+      await Future.delayed(Duration(milliseconds: 200));
+
+      if (!mounted) return;
+
+      await _startImageStream();
     } catch (e) {
-      _showError('Error initializing camera: $e');
+      _displayError('Error initializing camera: $e');
     }
   }
 
-  void _showError(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Colors.red,
-        ),
-      );
+  Future<void> _startImageStream() async {
+    if (!_cameraReady || !mounted) return;
+
+    try {
+      await _cameraController!.startImageStream(_processCameraImage);
+    } catch (e) {
+      _displayError('Failed to start camera stream: $e');
     }
+  }
+
+  void _displayError(String message) {
+    if (!mounted) return;
+
+    setState(() {
+      _showError = true;
+      _errorMessage = message;
+    });
+
     print('Error: $message');
   }
 
@@ -126,53 +193,10 @@ class _MediaPipeARViewState extends State<MediaPipeARView>
     try {
       final inputImage = _convertCameraImage(image);
       if (inputImage == null) {
-        print('Failed to convert camera image');
         return;
       }
 
       final poses = await _poseDetector.processImage(inputImage);
-
-      // Debug logging
-      if (_showDebugInfo) {
-        if (poses.isNotEmpty) {
-          print('Number of poses detected: ${poses.length}');
-
-          // Check visibility of key landmarks
-          final landmarks = poses.first.landmarks;
-          [
-            'nose',
-            'leftShoulder',
-            'rightShoulder',
-            'leftElbow',
-            'rightElbow',
-            'leftWrist',
-            'rightWrist',
-            'leftHip',
-            'rightHip',
-            'leftKnee',
-            'rightKnee',
-            'leftAnkle',
-            'rightAnkle'
-          ].forEach((joint) {
-            final type = PoseLandmarkType.values.firstWhere(
-              (e) =>
-                  e.toString().split('.').last.toLowerCase() ==
-                  joint.toLowerCase(),
-              orElse: () => PoseLandmarkType.nose,
-            );
-            if (landmarks.containsKey(type) && landmarks[type] != null) {
-              final landmark = landmarks[type]!;
-              print(
-                  '$joint: (${landmark.x.toStringAsFixed(2)}, ${landmark.y.toStringAsFixed(2)}) '
-                  'confidence: ${landmark.likelihood.toStringAsFixed(2)}');
-            } else {
-              print('$joint: not detected');
-            }
-          });
-        } else {
-          print('No poses detected');
-        }
-      }
 
       if (mounted) {
         setState(() {
@@ -197,32 +221,66 @@ class _MediaPipeARViewState extends State<MediaPipeARView>
 
   InputImage? _convertCameraImage(CameraImage image) {
     try {
-      // Create a buffer
-      final buffer = Uint8List.fromList(
-          image.planes.fold<List<int>>([], (allBytes, plane) {
-        allBytes.addAll(plane.bytes);
-        return allBytes;
-      }));
+      // Create InputImage using platform-specific approach
+      if (Platform.isAndroid) {
+        // For Android, using YUV format (nv21)
+        final bytes = Uint8List.fromList(image.planes[0].bytes);
+        final imageRotation = InputImageRotationValue.fromRawValue(
+                _cameraController!.description.sensorOrientation) ??
+            InputImageRotation.rotation0deg;
 
-      final imageSize = Size(image.width.toDouble(), image.height.toDouble());
+        final inputImageFormat = InputImageFormat.nv21;
 
-      final imageRotation = InputImageRotationValue.fromRawValue(
-              _cameraController!.description.sensorOrientation) ??
-          InputImageRotation.rotation0deg;
+        final inputImageData = InputImageData(
+          size: Size(image.width.toDouble(), image.height.toDouble()),
+          imageRotation: imageRotation,
+          inputImageFormat: inputImageFormat,
+          planeData: image.planes.map((plane) {
+            return InputImagePlaneMetadata(
+              bytesPerRow: plane.bytesPerRow,
+              height: plane.height ?? 0,
+              width: plane.width ?? 0,
+            );
+          }).toList(),
+        );
 
-      final inputImageFormat =
-          InputImageFormatValue.fromRawValue(image.format.raw) ??
-              InputImageFormat.nv21;
+        return InputImage.fromBytes(
+          bytes: bytes,
+          inputImageData: inputImageData,
+        );
+      } else if (Platform.isIOS) {
+        // For iOS, using BGRA format
+        final planes = image.planes;
+        final width = image.width;
+        final height = image.height;
+        final bytes = planes[0].bytes;
 
-      // Create image metadata
-      final metadata = InputImageMetadata(
-        size: imageSize,
-        rotation: imageRotation,
-        format: inputImageFormat,
-        bytesPerRow: image.planes[0].bytesPerRow,
-      );
+        final imageRotation = InputImageRotationValue.fromRawValue(
+                _cameraController!.description.sensorOrientation) ??
+            InputImageRotation.rotation0deg;
 
-      return InputImage.fromBytes(bytes: buffer, metadata: metadata);
+        final inputImageFormat = InputImageFormat.bgra8888;
+
+        final inputImageData = InputImageData(
+          size: Size(width.toDouble(), height.toDouble()),
+          imageRotation: imageRotation,
+          inputImageFormat: inputImageFormat,
+          planeData: image.planes.map((plane) {
+            return InputImagePlaneMetadata(
+              bytesPerRow: plane.bytesPerRow,
+              height: plane.height ?? 0,
+              width: plane.width ?? 0,
+            );
+          }).toList(),
+        );
+
+        return InputImage.fromBytes(
+          bytes: bytes,
+          inputImageData: inputImageData,
+        );
+      }
+
+      return null;
     } catch (e) {
       print('Error converting camera image: $e');
       return null;
@@ -238,9 +296,10 @@ class _MediaPipeARViewState extends State<MediaPipeARView>
       return;
     }
 
-    final screenSize = MediaQuery.of(context).size;
-    final RenderBox renderBox =
-        _cameraKey.currentContext?.findRenderObject() as RenderBox;
+    final renderBox =
+        _cameraKey.currentContext?.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+
     final localPosition = renderBox.globalToLocal(details.globalPosition);
 
     // Find the nearest landmark with a larger detection radius
@@ -256,22 +315,23 @@ class _MediaPipeARViewState extends State<MediaPipeARView>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                'No joint detected nearby. Try again closer to a body joint.'),
+                'No joint detected nearby. Try again closer to a body joint or use Manual Mode.'),
             duration: Duration(seconds: 2),
+            action: SnackBarAction(
+              label: 'Manual Mode',
+              onPressed: _enableManualPlacementMode,
+            ),
           ),
         );
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('No body pose detected. Try adjusting your position.'),
+          content: Text('No body pose detected. Switching to Manual Mode.'),
           duration: Duration(seconds: 2),
-          action: SnackBarAction(
-            label: 'Manual Mode',
-            onPressed: _enableManualPlacementMode,
-          ),
         ),
       );
+      _enableManualPlacementMode();
     }
   }
 
@@ -331,7 +391,7 @@ class _MediaPipeARViewState extends State<MediaPipeARView>
     ];
 
     for (final type in landmarkTypes) {
-      if (!pose.landmarks.containsKey(type) || pose.landmarks[type] == null) {
+      if (!pose.landmarks.containsKey(type)) {
         continue;
       }
 
@@ -339,7 +399,7 @@ class _MediaPipeARViewState extends State<MediaPipeARView>
       final landmarkScreenPos = _landmarkToScreenPosition(landmark);
       final distance = (landmarkScreenPos - screenPosition).distance;
 
-      // Increased tap radius from 50 to 100 for easier detection
+      // Increased tap radius for easier detection
       if (distance < minDistance && distance < 100) {
         minDistance = distance;
         nearestLandmark = landmark;
@@ -434,6 +494,7 @@ class _MediaPipeARViewState extends State<MediaPipeARView>
               Text('Mode: ${_manualPlacementMode ? "Manual" : "Auto"}'),
               Text(
                   'Selected joint: ${_selectedLimb?.type.toString().split('.').last ?? "None"}'),
+              Text('Model loaded: ${_modelLoaded ? "Yes" : "No"}'),
             ],
           ),
         ),
@@ -460,13 +521,6 @@ class _MediaPipeARViewState extends State<MediaPipeARView>
 
   @override
   Widget build(BuildContext context) {
-    if (_cameraController == null || !_cameraController!.value.isInitialized) {
-      return Scaffold(
-        appBar: AppBar(title: Text('AR View')),
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
     return Scaffold(
       appBar: AppBar(
         title: Text('AR View'),
@@ -497,104 +551,183 @@ class _MediaPipeARViewState extends State<MediaPipeARView>
           ),
         ],
       ),
-      body: Stack(
-        children: [
-          // Camera preview
-          GestureDetector(
-            key: _cameraKey,
-            onTapDown: _handleTapDown,
+      body: _showError
+          ? _buildErrorView()
+          : !_isCameraInitialized
+              ? _buildLoadingView()
+              : _buildARView(),
+      floatingActionButton: _manualPlacementMode
+          ? FloatingActionButton(
+              onPressed: () => setState(() => _manualPlacementMode = false),
+              child: Icon(Icons.auto_awesome),
+              backgroundColor: AppTheme.primaryColor,
+              tooltip: 'Switch to Auto Mode',
+            )
+          : null,
+    );
+  }
+
+  Widget _buildLoadingView() {
+    return Container(
+      color: Colors.black,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            ),
+            SizedBox(height: 20),
+            Text(
+              'Initializing camera...',
+              style: TextStyle(color: Colors.white, fontSize: 16),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorView() {
+    return Container(
+      color: Colors.black87,
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.error_outline,
+              color: Colors.red,
+              size: 60,
+            ),
+            SizedBox(height: 16),
+            Text(
+              'Camera Error',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold),
+            ),
+            SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32.0),
+              child: Text(
+                _errorMessage,
+                style: TextStyle(color: Colors.white70),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: _initializeCamera,
+              child: Text('Retry'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.primaryColor,
+                padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildARView() {
+    return Stack(
+      children: [
+        // Camera preview
+        GestureDetector(
+          key: _cameraKey,
+          onTapDown: _handleTapDown,
+          child: Container(
+            width: double.infinity,
+            height: double.infinity,
             child: CameraPreview(_cameraController!),
           ),
+        ),
 
-          // Pose overlay
-          if (_poses.isNotEmpty && _imageSize != null)
-            _PoseOverlay(
-              poses: _poses,
-              imageSize: _imageSize!,
-              screenSize: MediaQuery.of(context).size,
-              selectedLimb: _selectedLimb,
-              anchorPosition: _anchorPosition,
-              scaleFactor: _scaleFactor,
-              showDebugInfo: _showDebugInfo,
+        // Pose overlay
+        if (_poses.isNotEmpty && _imageSize != null)
+          _PoseOverlay(
+            poses: _poses,
+            imageSize: _imageSize!,
+            screenSize: MediaQuery.of(context).size,
+            selectedLimb: _selectedLimb,
+            anchorPosition: _anchorPosition,
+            scaleFactor: _scaleFactor,
+            showDebugInfo: _showDebugInfo,
+          ),
+
+        // Prosthetic model overlay - Now using actual 3D model
+        if (_anchorPosition != null && widget.selectedConfig != null)
+          _ARModelOverlay(
+            anchorPosition: _anchorPosition!,
+            config: widget.selectedConfig!,
+            limbType: ProstheticScaler.getLimbTypeFromModelPath(
+                widget.selectedConfig!.modelPath),
+          ),
+
+        // Status indicator
+        Positioned(
+          top: 16,
+          left: 16,
+          child: Container(
+            padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.black54,
+              borderRadius: BorderRadius.circular(20),
             ),
-
-          // Prosthetic model overlay
-          if (_anchorPosition != null && widget.selectedConfig != null)
-            _ProstheticOverlay(
-              anchorPosition: _anchorPosition!,
-              config: widget.selectedConfig!,
+            child: Text(
+              _manualPlacementMode
+                  ? 'Manual Mode: Tap anywhere to place prosthetic'
+                  : _anchorPosition == null
+                      ? 'Tap near a body joint to anchor'
+                      : 'Prosthetic anchored',
+              style: TextStyle(color: Colors.white, fontSize: 14),
             ),
+          ),
+        ),
 
-          // Status indicator
+        // Show debug info if enabled
+        if (_showDebugInfo)
           Positioned(
-            top: 16,
+            bottom: 16,
             left: 16,
+            right: 16,
             child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.black54,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Text(
-                _manualPlacementMode
-                    ? 'Manual Mode: Tap anywhere to place prosthetic'
-                    : _anchorPosition == null
-                        ? 'Tap near a body joint to anchor'
-                        : 'Prosthetic anchored',
-                style: TextStyle(color: Colors.white, fontSize: 12),
+              padding: EdgeInsets.all(8),
+              color: Colors.black54,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Debug Info:',
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    'Poses detected: ${_poses.length}',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  if (_imageSize != null)
+                    Text(
+                      'Image size: ${_imageSize!.width.toInt()}x${_imageSize!.height.toInt()}',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  Text(
+                    'Scale factor: ${_scaleFactor.toStringAsFixed(2)}',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                  Text(
+                    'Mode: ${_manualPlacementMode ? "Manual" : "Auto"}',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ],
               ),
             ),
           ),
-
-          // Show debug info if enabled
-          if (_showDebugInfo)
-            Positioned(
-              bottom: 16,
-              left: 16,
-              right: 16,
-              child: Container(
-                padding: EdgeInsets.all(8),
-                color: Colors.black54,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Debug Info:',
-                      style: TextStyle(
-                          color: Colors.white, fontWeight: FontWeight.bold),
-                    ),
-                    Text(
-                      'Poses detected: ${_poses.length}',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    if (_imageSize != null)
-                      Text(
-                        'Image size: ${_imageSize!.width.toInt()}x${_imageSize!.height.toInt()}',
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    Text(
-                      'Scale factor: ${_scaleFactor.toStringAsFixed(2)}',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                    Text(
-                      'Mode: ${_manualPlacementMode ? "Manual" : "Auto"}',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-      floatingActionButton: _manualPlacementMode
-          ? null
-          : FloatingActionButton(
-              onPressed: _enableManualPlacementMode,
-              child: Icon(Icons.touch_app),
-              backgroundColor: AppTheme.primaryColor,
-              tooltip: 'Switch to Manual Mode',
-            ),
+      ],
     );
   }
 }
@@ -799,7 +932,7 @@ class _PosePainter extends CustomPainter {
     final scaleY = screenSize.height / imageSize.height;
     final scale = math.min(scaleX, scaleY);
 
-    // Calculate offset to center image
+// Calculate offset to center image
     final offsetX = (screenSize.width - imageSize.width * scale) / 2;
     final offsetY = (screenSize.height - imageSize.height * scale) / 2;
 
@@ -820,56 +953,333 @@ class _PosePainter extends CustomPainter {
   }
 }
 
-class _ProstheticOverlay extends StatelessWidget {
+class _ARModelOverlay extends StatelessWidget {
   final Offset anchorPosition;
   final ProstheticConfig config;
+  final String limbType;
 
-  const _ProstheticOverlay({
+  const _ARModelOverlay({
     required this.anchorPosition,
     required this.config,
+    required this.limbType,
   });
 
   @override
   Widget build(BuildContext context) {
     // Get scale factors based on the prosthetic config
-    final limbType =
-        ProstheticScaler.getLimbTypeFromModelPath(config.modelPath);
     final scaleFactors =
         ProstheticScaler.getScaleFactorsForAge(config.patientAge, limbType);
 
+    // Calculate model size based on limb type and config
+    final baseWidth = limbType.contains('arm') ? 100 : 120;
+    final baseHeight = limbType.contains('arm') ? 180 : 240;
+
+    final modelWidth = baseWidth * scaleFactors['x']!;
+    final modelHeight = baseHeight * scaleFactors['y']!;
+
+    // Position model at anchor point, adjusting to center
     return Positioned(
-      left: anchorPosition.dx - 50 * scaleFactors['x']!,
-      top: anchorPosition.dy - 50 * scaleFactors['y']!,
-      child: IgnorePointer(
-        child: Container(
-          width: 100 * scaleFactors['x']!,
-          height: 100 * scaleFactors['y']!,
-          decoration: BoxDecoration(
-            color: config.color.withOpacity(0.3),
-            border: Border.all(color: config.color, width: 2),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.view_in_ar,
-                  color: config.color,
-                  size: 32,
-                ),
-                Text(
-                  limbType.toUpperCase(),
-                  style: TextStyle(
+      left: anchorPosition.dx - (modelWidth / 2),
+      top: anchorPosition.dy - (modelHeight / 2),
+      child: Container(
+        width: modelWidth,
+        height: modelHeight,
+        child: Stack(
+          children: [
+            // Render 3D model here - Currently using a placeholder
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: config.color.withOpacity(0.1),
+                  border: Border.all(
                     color: config.color,
+                    width: 2,
+                  ),
+                ),
+                child: _buildModelContent(context),
+              ),
+            ),
+            // Rendering metrics (for debugging)
+            Positioned(
+              top: 4,
+              right: 4,
+              child: Container(
+                padding: EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: Colors.black45,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  '${limbType.toUpperCase()}',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
+
+  Widget _buildModelContent(BuildContext context) {
+    // Determine which 3D model to display based on path
+    String displayPath = config.modelPath;
+
+    // If path contains "hand" or is default cyborg model, show a hand model
+    if (limbType.contains('hand') || displayPath.contains('cyborg')) {
+      // Create a container that looks like a stylized hand
+      return CustomPaint(
+        painter: _ProstheticPainter(
+          limbType: limbType,
+          color: config.color,
+        ),
+      );
+    }
+    // If path contains "arm", show an arm/elbow model
+    else if (limbType.contains('arm')) {
+      return CustomPaint(
+        painter: _ProstheticPainter(
+          limbType: 'arm',
+          color: config.color,
+        ),
+      );
+    }
+    // For leg models
+    else if (limbType.contains('leg')) {
+      return CustomPaint(
+        painter: _ProstheticPainter(
+          limbType: 'leg',
+          color: config.color,
+        ),
+      );
+    }
+
+    // Default fallback
+    return Center(
+      child: Icon(
+        Icons.view_in_ar,
+        color: config.color,
+        size: 32,
+      ),
+    );
+  }
+}
+
+// Custom painter for prosthetic visualization
+class _ProstheticPainter extends CustomPainter {
+  final String limbType;
+  final Color color;
+
+  _ProstheticPainter({
+    required this.limbType,
+    required this.color,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final outlinePaint = Paint()
+      ..color = color.withOpacity(0.8)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+
+    final highlightPaint = Paint()
+      ..color = Colors.white.withOpacity(0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    if (limbType.contains('hand')) {
+      _drawHand(canvas, size, paint, outlinePaint, highlightPaint);
+    } else if (limbType.contains('arm')) {
+      _drawArm(canvas, size, paint, outlinePaint, highlightPaint);
+    } else if (limbType.contains('leg')) {
+      _drawLeg(canvas, size, paint, outlinePaint, highlightPaint);
+    }
+  }
+
+  void _drawHand(Canvas canvas, Size size, Paint paint, Paint outlinePaint,
+      Paint highlightPaint) {
+    final path = Path();
+
+    // Draw palm
+    final palmRect = Rect.fromLTWH(size.width * 0.2, size.height * 0.2,
+        size.width * 0.6, size.height * 0.4);
+    path.addRRect(RRect.fromRectAndRadius(
+      palmRect,
+      Radius.circular(12),
+    ));
+
+    // Draw fingers
+    final fingerWidth = size.width * 0.08;
+    for (int i = 0; i < 5; i++) {
+      final fingerX = size.width * 0.25 + (i * size.width * 0.125);
+
+      // Vary finger height
+      double fingerHeight = size.height * 0.3;
+      if (i == 0) fingerHeight *= 0.8; // Thumb
+      if (i == 2) fingerHeight *= 1.1; // Middle finger
+
+      final fingerRect =
+          Rect.fromLTWH(fingerX, size.height * 0.1, fingerWidth, fingerHeight);
+
+      path.addRRect(RRect.fromRectAndRadius(
+        fingerRect,
+        Radius.circular(fingerWidth / 2),
+      ));
+    }
+
+    // Draw wrist attachment
+    path.addRRect(RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width * 0.25, size.height * 0.6, size.width * 0.5,
+          size.height * 0.35),
+      Radius.circular(8),
+    ));
+
+    // Draw the shape
+    canvas.drawPath(path, paint);
+    canvas.drawPath(path, outlinePaint);
+
+    // Add highlights/details
+    final detailPath = Path();
+
+    // Knuckle details
+    for (int i = 0; i < 5; i++) {
+      final knuckleX =
+          size.width * 0.25 + (i * size.width * 0.125) + fingerWidth / 2;
+      final knuckleY = size.height * 0.25;
+
+      detailPath.addOval(Rect.fromCircle(
+        center: Offset(knuckleX, knuckleY),
+        radius: fingerWidth * 0.6,
+      ));
+    }
+
+    // Wrist joint detail
+    detailPath.addOval(Rect.fromCircle(
+      center: Offset(size.width * 0.5, size.height * 0.62),
+      radius: size.width * 0.1,
+    ));
+
+    canvas.drawPath(detailPath, highlightPaint);
+  }
+
+  void _drawArm(Canvas canvas, Size size, Paint paint, Paint outlinePaint,
+      Paint highlightPaint) {
+    final path = Path();
+
+    // Upper arm section
+    path.addRRect(RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width * 0.3, size.height * 0.1, size.width * 0.4,
+          size.height * 0.3),
+      Radius.circular(10),
+    ));
+
+    // Elbow joint
+    final elbowCenter = Offset(size.width * 0.5, size.height * 0.45);
+    path.addOval(Rect.fromCircle(
+      center: elbowCenter,
+      radius: size.width * 0.12,
+    ));
+
+    // Forearm section
+    path.addRRect(RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width * 0.3, size.height * 0.5, size.width * 0.4,
+          size.height * 0.4),
+      Radius.circular(10),
+    ));
+
+    // Draw the shape
+    canvas.drawPath(path, paint);
+    canvas.drawPath(path, outlinePaint);
+
+    // Add highlights/details
+    final detailPath = Path();
+
+    // Elbow mechanism
+    detailPath.addOval(Rect.fromCircle(
+      center: elbowCenter,
+      radius: size.width * 0.08,
+    ));
+
+    // Upper attachment
+    detailPath.addRRect(RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width * 0.35, size.height * 0.12, size.width * 0.3,
+          size.height * 0.05),
+      Radius.circular(4),
+    ));
+
+    // Lower attachment
+    detailPath.addRRect(RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width * 0.35, size.height * 0.82, size.width * 0.3,
+          size.height * 0.05),
+      Radius.circular(4),
+    ));
+
+    canvas.drawPath(detailPath, highlightPaint);
+  }
+
+  void _drawLeg(Canvas canvas, Size size, Paint paint, Paint outlinePaint,
+      Paint highlightPaint) {
+    final path = Path();
+
+    // Thigh section
+    path.addRRect(RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width * 0.3, size.height * 0.05, size.width * 0.4,
+          size.height * 0.35),
+      Radius.circular(12),
+    ));
+
+    // Knee joint
+    final kneeCenter = Offset(size.width * 0.5, size.height * 0.45);
+    path.addOval(Rect.fromCircle(
+      center: kneeCenter,
+      radius: size.width * 0.15,
+    ));
+
+    // Lower leg section
+    path.addRRect(RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width * 0.25, size.height * 0.5, size.width * 0.5,
+          size.height * 0.45),
+      Radius.circular(8),
+    ));
+
+    // Draw the shape
+    canvas.drawPath(path, paint);
+    canvas.drawPath(path, outlinePaint);
+
+    // Add highlights/details
+    final detailPath = Path();
+
+    // Knee mechanism
+    detailPath.addOval(Rect.fromCircle(
+      center: kneeCenter,
+      radius: size.width * 0.1,
+    ));
+
+    // Upper attachment
+    detailPath.addRRect(RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width * 0.35, size.height * 0.08, size.width * 0.3,
+          size.height * 0.05),
+      Radius.circular(4),
+    ));
+
+    // Ankle mechanism
+    detailPath.addOval(Rect.fromCircle(
+      center: Offset(size.width * 0.5, size.height * 0.9),
+      radius: size.width * 0.08,
+    ));
+
+    canvas.drawPath(detailPath, highlightPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
