@@ -164,6 +164,9 @@ class _ARViewScreenState extends State<ARViewScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Get the safe area bottom padding
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+
     return Scaffold(
       appBar: AppBar(
         title: Text('AR Visualization'),
@@ -185,7 +188,6 @@ class _ARViewScreenState extends State<ARViewScreen>
         children: [
           // Main content area (AR viewer)
           Expanded(
-            flex: 85,
             child: Stack(
               children: [
                 _selectedConfig == null
@@ -369,9 +371,10 @@ class _ARViewScreenState extends State<ARViewScreen>
             ),
           ),
 
-          // Bottom configuration panel - Fixed height to avoid overflow
+          // Bottom configuration panel - Fixed height with safe area handling
           Container(
-            height: 120,
+            // Account for bottom safe area in the height calculation
+            height: 110 + bottomPadding, // Reduced from 120 to prevent overflow
             decoration: BoxDecoration(
               color: Colors.white,
               boxShadow: [
@@ -385,71 +388,76 @@ class _ARViewScreenState extends State<ARViewScreen>
                 top: Radius.circular(20),
               ),
             ),
-            child: SafeArea(
-              bottom: true,
-              maintainBottomViewPadding: true,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Padding(
-                      padding: EdgeInsets.only(left: 8, bottom: 6),
-                      child: Text(
-                        _savedConfigs.isEmpty
-                            ? 'Create Your First Configuration'
-                            : 'Select Configuration',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: AppTheme.primaryColor,
+            child: Column(
+              children: [
+                // Content area
+                Padding(
+                  padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.only(left: 8, bottom: 6),
+                        child: Text(
+                          _savedConfigs.isEmpty
+                              ? 'Create Your First Configuration'
+                              : 'Select Configuration',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.primaryColor,
+                          ),
                         ),
                       ),
-                    ),
-                    _savedConfigs.isEmpty && !_isLoading
-                        ? Container(
-                            width: double.infinity,
-                            child: ElevatedButton.icon(
-                              icon: Icon(Icons.add, size: 20),
-                              label: Text('Create Configuration'),
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        CustomizeProstheticScreen(),
+                      _savedConfigs.isEmpty && !_isLoading
+                          ? Container(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                icon: Icon(Icons.add, size: 20),
+                                label: Text('Create Configuration'),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          CustomizeProstheticScreen(),
+                                    ),
+                                  ).then((_) => _loadSavedConfigs());
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  padding: EdgeInsets.symmetric(vertical: 12),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12),
                                   ),
-                                ).then((_) => _loadSavedConfigs());
-                              },
-                              style: ElevatedButton.styleFrom(
-                                padding: EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
+                                  elevation: 2,
                                 ),
-                                elevation: 2,
+                              ),
+                            )
+                          : Container(
+                              height: 70,
+                              child: ListView.builder(
+                                scrollDirection: Axis.horizontal,
+                                itemCount: _savedConfigs.length,
+                                itemBuilder: (context, index) {
+                                  final config = _savedConfigs[index];
+                                  final isSelected =
+                                      _selectedConfig?.id == config.id;
+                                  return Padding(
+                                    padding: EdgeInsets.only(
+                                        right: 8), // Reduced from 12 to 8
+                                    child: _buildConfigCard(config, isSelected),
+                                  );
+                                },
                               ),
                             ),
-                          )
-                        : Container(
-                            height: 70,
-                            child: ListView.builder(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: _savedConfigs.length,
-                              itemBuilder: (context, index) {
-                                final config = _savedConfigs[index];
-                                final isSelected =
-                                    _selectedConfig?.id == config.id;
-                                return Padding(
-                                  padding: EdgeInsets.only(right: 12),
-                                  child: _buildConfigCard(config, isSelected),
-                                );
-                              },
-                            ),
-                          ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+
+                // Add SafeArea padding at the bottom
+                SizedBox(height: bottomPadding),
+              ],
             ),
           ),
         ],
@@ -465,7 +473,7 @@ class _ARViewScreenState extends State<ARViewScreen>
         borderRadius: BorderRadius.circular(15),
         child: AnimatedContainer(
           duration: Duration(milliseconds: 200),
-          width: 110, // Fixed width to prevent overflow
+          width: 100, // Reduced from 110 to 100 to prevent overflow
           height: 70, // Fixed height
           padding: EdgeInsets.all(6),
           decoration: BoxDecoration(

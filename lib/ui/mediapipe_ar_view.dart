@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Add this import for WriteBuffer
 import 'package:camera/camera.dart';
 import 'package:google_mlkit_pose_detection/google_mlkit_pose_detection.dart';
 import 'dart:math' as math;
@@ -221,25 +222,32 @@ class _MediaPipeARViewState extends State<MediaPipeARView>
 
   InputImage? _convertCameraImage(CameraImage image) {
     try {
-      // Simplified approach for creating InputImage
-      final bytes = Uint8List.fromList(image.planes[0].bytes);
-
-      final imageSize = Size(
-        image.width.toDouble(),
-        image.height.toDouble(),
-      );
-
-      final imageRotation = InputImageRotation.rotation0deg;
-      final inputImageFormat = InputImageFormat.nv21;
-
-      final metadata = InputImageMetadata(
-        size: imageSize,
-        rotation: imageRotation,
-        format: inputImageFormat,
-        bytesPerRow: image.planes[0].bytesPerRow,
-      );
-
-      return InputImage.fromBytes(bytes: bytes, metadata: metadata);
+      // For NV21 format (Android)
+      if (Platform.isAndroid) {
+        final bytes = Uint8List.fromList(image.planes[0].bytes);
+        return InputImage.fromBytes(
+          bytes: bytes,
+          metadata: InputImageMetadata(
+            size: Size(image.width.toDouble(), image.height.toDouble()),
+            rotation: InputImageRotation.rotation0deg, // Default rotation
+            format: InputImageFormat.nv21,
+            bytesPerRow: image.planes[0].bytesPerRow,
+          ),
+        );
+      }
+      // For BGRA8888 format (iOS)
+      else {
+        final bytes = Uint8List.fromList(image.planes[0].bytes);
+        return InputImage.fromBytes(
+          bytes: bytes,
+          metadata: InputImageMetadata(
+            size: Size(image.width.toDouble(), image.height.toDouble()),
+            rotation: InputImageRotation.rotation0deg,
+            format: InputImageFormat.bgra8888,
+            bytesPerRow: image.planes[0].bytesPerRow,
+          ),
+        );
+      }
     } catch (e) {
       print('Error converting camera image: $e');
       return null;
@@ -312,17 +320,33 @@ class _MediaPipeARViewState extends State<MediaPipeARView>
 
     final screenSize = MediaQuery.of(context).size;
 
-    // Calculate scale and offset to maintain aspect ratio and center the image
-    final scaleX = screenSize.width / _imageSize!.width;
-    final scaleY = screenSize.height / _imageSize!.height;
-    final scale = math.min(scaleX, scaleY);
+    // Account for camera preview's fit mode
+    double scale;
+    double dx = 0, dy = 0;
 
-    final offsetX = (screenSize.width - _imageSize!.width * scale) / 2;
-    final offsetY = (screenSize.height - _imageSize!.height * scale) / 2;
+    if (_cameraController != null) {
+      final cameraAspectRatio = _cameraController!.value.aspectRatio;
+      final screenAspectRatio = screenSize.width / screenSize.height;
 
+      if (screenAspectRatio < cameraAspectRatio) {
+        // Camera is wider than screen, so scale based on width
+        scale = screenSize.width / _imageSize!.width;
+        final scaledHeight = _imageSize!.height * scale;
+        dy = (screenSize.height - scaledHeight) / 2;
+      } else {
+        // Camera is taller than screen, so scale based on height
+        scale = screenSize.height / _imageSize!.height;
+        final scaledWidth = _imageSize!.width * scale;
+        dx = (screenSize.width - scaledWidth) / 2;
+      }
+    } else {
+      scale = _scaleFactor;
+    }
+
+    // Convert normalized coordinates (0-1) to screen coordinates
     return Offset(
-      offsetX + landmark.x * _imageSize!.width * scale,
-      offsetY + landmark.y * _imageSize!.height * scale,
+      dx + landmark.x * _imageSize!.width * scale,
+      dy + landmark.y * _imageSize!.height * scale,
     );
   }
 
@@ -615,6 +639,7 @@ class _MediaPipeARViewState extends State<MediaPipeARView>
             anchorPosition: _anchorPosition,
             scaleFactor: _scaleFactor,
             showDebugInfo: _showDebugInfo,
+            cameraController: _cameraController,
           ),
 
         // Prosthetic model overlay
@@ -636,13 +661,26 @@ class _MediaPipeARViewState extends State<MediaPipeARView>
               color: Colors.black54,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: Text(
-              _manualPlacementMode
-                  ? 'Manual Mode: Tap anywhere to place prosthetic'
-                  : _anchorPosition == null
-                      ? 'Tap near a body joint to anchor'
-                      : 'Prosthetic anchored',
-              style: TextStyle(color: Colors.white, fontSize: 14),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  _poses.isEmpty ? Icons.person_off : Icons.person,
+                  color: _poses.isEmpty ? Colors.red : Colors.green,
+                  size: 16,
+                ),
+                SizedBox(width: 8),
+                Text(
+                  _manualPlacementMode
+                      ? 'Manual Mode: Tap anywhere to place prosthetic'
+                      : _poses.isEmpty
+                          ? 'No body detected'
+                          : _anchorPosition == null
+                              ? 'Body detected - Tap near a joint to anchor'
+                              : 'Prosthetic anchored',
+                  style: TextStyle(color: Colors.white, fontSize: 14),
+                ),
+              ],
             ),
           ),
         ),
@@ -699,6 +737,7 @@ class _PoseOverlay extends StatelessWidget {
   final Offset? anchorPosition;
   final double scaleFactor;
   final bool showDebugInfo;
+  final CameraController? cameraController;
 
   const _PoseOverlay({
     required this.poses,
@@ -708,6 +747,7 @@ class _PoseOverlay extends StatelessWidget {
     this.anchorPosition,
     required this.scaleFactor,
     this.showDebugInfo = false,
+    this.cameraController,
   });
 
   @override
@@ -721,6 +761,7 @@ class _PoseOverlay extends StatelessWidget {
         anchorPosition: anchorPosition,
         scaleFactor: scaleFactor,
         showDebugInfo: showDebugInfo,
+        cameraController: cameraController,
       ),
       child: Container(),
     );
@@ -735,6 +776,7 @@ class _PosePainter extends CustomPainter {
   final Offset? anchorPosition;
   final double scaleFactor;
   final bool showDebugInfo;
+  final CameraController? cameraController;
 
   _PosePainter({
     required this.poses,
@@ -744,18 +786,20 @@ class _PosePainter extends CustomPainter {
     this.anchorPosition,
     required this.scaleFactor,
     this.showDebugInfo = false,
+    this.cameraController,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
     final Paint paint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.0
-      ..color = AppTheme.primaryColor.withOpacity(0.7);
+      ..strokeWidth = 4.0 // Make lines thicker for better visibility
+      ..color = Colors.green
+          .withOpacity(0.7); // Changed to green for better visibility
 
     final Paint pointPaint = Paint()
       ..style = PaintingStyle.fill
-      ..color = AppTheme.primaryColor;
+      ..color = Colors.blue; // Changed to blue for better visibility
 
     final Paint selectedPaint = Paint()
       ..style = PaintingStyle.fill
@@ -764,7 +808,8 @@ class _PosePainter extends CustomPainter {
     for (final pose in poses) {
       // Draw pose landmarks
       pose.landmarks.forEach((type, landmark) {
-        if (landmark != null) {
+        if (landmark != null && landmark.likelihood > 0.5) {
+          // Only draw high confidence landmarks
           final point = _translatePoint(landmark.x, landmark.y);
           final isSelected = selectedLimb != null &&
               _fuzzyLandmarkMatch(selectedLimb!, landmark);
@@ -773,7 +818,7 @@ class _PosePainter extends CustomPainter {
           if (showDebugInfo) {
             final confidencePaint = Paint()
               ..style = PaintingStyle.stroke
-              ..strokeWidth = 1.0
+              ..strokeWidth = 2.0
               ..color = _getConfidenceColor(landmark.likelihood);
 
             canvas.drawCircle(
@@ -783,11 +828,23 @@ class _PosePainter extends CustomPainter {
             );
           }
 
-          // Draw the joint point
+          // Draw the joint point with larger radius for better visibility
           canvas.drawCircle(
             point,
-            isSelected ? 8 : 5,
+            isSelected ? 10 : 8,
             isSelected ? selectedPaint : pointPaint,
+          );
+
+          // Draw a white outline for better visibility
+          final outlinePaint = Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 2.0
+            ..color = Colors.white;
+
+          canvas.drawCircle(
+            point,
+            isSelected ? 10 : 8,
+            outlinePaint,
           );
 
           // In debug mode, draw the joint name
@@ -795,8 +852,9 @@ class _PosePainter extends CustomPainter {
             final textSpan = TextSpan(
               text: type.toString().split('.').last,
               style: TextStyle(
-                color: Colors.yellow,
-                fontSize: 10,
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
                 background: Paint()..color = Colors.black54,
               ),
             );
@@ -826,8 +884,8 @@ class _PosePainter extends CustomPainter {
         ..strokeWidth = 3.0
         ..color = Colors.red;
 
-      canvas.drawCircle(anchorPosition!, 12, anchorPaint);
-      canvas.drawCircle(anchorPosition!, 6, Paint()..color = Colors.red);
+      canvas.drawCircle(anchorPosition!, 15, anchorPaint);
+      canvas.drawCircle(anchorPosition!, 8, Paint()..color = Colors.red);
     }
   }
 
@@ -869,11 +927,14 @@ class _PosePainter extends CustomPainter {
       final landmark1 = landmarks[connection[0]];
       final landmark2 = landmarks[connection[1]];
 
-      if (landmark1 != null && landmark2 != null) {
+      if (landmark1 != null &&
+          landmark2 != null &&
+          landmark1.likelihood > 0.5 &&
+          landmark2.likelihood > 0.5) {
         final point1 = _translatePoint(landmark1.x, landmark1.y);
         final point2 = _translatePoint(landmark2.x, landmark2.y);
 
-        // Use confidence-based color if in debug mode
+// Use confidence-based color if in debug mode
         if (showDebugInfo) {
           final avgConfidence =
               (landmark1.likelihood + landmark2.likelihood) / 2;
@@ -887,18 +948,43 @@ class _PosePainter extends CustomPainter {
 
   Offset _translatePoint(double x, double y) {
     // Calculate proper scaling to maintain aspect ratio
-    final scaleX = screenSize.width / imageSize.width;
-    final scaleY = screenSize.height / imageSize.height;
-    final scale = math.min(scaleX, scaleY);
+    double scale;
+    double dx = 0, dy = 0;
 
-    // Calculate offset to center image
-    final offsetX = (screenSize.width - imageSize.width * scale) / 2;
-    final offsetY = (screenSize.height - imageSize.height * scale) / 2;
+    if (cameraController != null) {
+      final cameraAspectRatio = cameraController!.value.aspectRatio;
+      final screenAspectRatio = screenSize.width / screenSize.height;
+
+      // Correctly map the image coordinates to the screen
+      if (screenAspectRatio < cameraAspectRatio) {
+        // Camera preview is wider than screen
+        scale = screenSize.width / imageSize.width;
+        final scaledHeight = imageSize.height * scale;
+        dy = (screenSize.height - scaledHeight) / 2;
+      } else {
+        // Camera preview is taller than screen
+        scale = screenSize.height / imageSize.height;
+        final scaledWidth = imageSize.width * scale;
+        dx = (screenSize.width - scaledWidth) / 2;
+      }
+    } else {
+      scale = scaleFactor;
+    }
 
     // Map from normalized coordinates (0-1) to screen coordinates
+    // Flip x-coordinate for front camera
+    double adjustedX = x;
+
+    // If using front camera, we need to flip horizontally
+    if (cameraController != null &&
+        cameraController!.description.lensDirection ==
+            CameraLensDirection.front) {
+      adjustedX = 1.0 - x;
+    }
+
     return Offset(
-      offsetX + x * imageSize.width * scale,
-      offsetY + y * imageSize.height * scale,
+      dx + adjustedX * imageSize.width * scale,
+      dy + y * imageSize.height * scale,
     );
   }
 
@@ -945,10 +1031,12 @@ class _ARModelOverlay extends StatelessWidget {
         height: modelHeight,
         child: Stack(
           children: [
-            // Render 3D model here - Currently using a placeholder
+            // Render 3D model
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
               child: Container(
+                width: double.infinity,
+                height: double.infinity,
                 decoration: BoxDecoration(
                   color: config.color.withOpacity(0.1),
                   border: Border.all(
@@ -959,7 +1047,7 @@ class _ARModelOverlay extends StatelessWidget {
                 child: _buildModelContent(context),
               ),
             ),
-            // Rendering metrics (for debugging)
+            // Display limb type name
             Positioned(
               top: 4,
               right: 4,
@@ -986,44 +1074,12 @@ class _ARModelOverlay extends StatelessWidget {
   }
 
   Widget _buildModelContent(BuildContext context) {
-    // Determine which 3D model to display based on path
-    String displayPath = config.modelPath;
-
-    // If path contains "hand" or is default cyborg model, show a hand model
-    if (limbType.contains('hand') || displayPath.contains('cyborg')) {
-      // Create a container that looks like a stylized hand
-      return CustomPaint(
-        painter: _ProstheticPainter(
-          limbType: limbType,
-          color: config.color,
-        ),
-      );
-    }
-    // If path contains "arm", show an arm/elbow model
-    else if (limbType.contains('arm')) {
-      return CustomPaint(
-        painter: _ProstheticPainter(
-          limbType: 'arm',
-          color: config.color,
-        ),
-      );
-    }
-    // For leg models
-    else if (limbType.contains('leg')) {
-      return CustomPaint(
-        painter: _ProstheticPainter(
-          limbType: 'leg',
-          color: config.color,
-        ),
-      );
-    }
-
-    // Default fallback
-    return Center(
-      child: Icon(
-        Icons.view_in_ar,
+    // Create a more visually informative visualization
+    return CustomPaint(
+      size: Size.infinite,
+      painter: _ProstheticPainter(
+        limbType: limbType,
         color: config.color,
-        size: 32,
       ),
     );
   }
@@ -1061,7 +1117,76 @@ class _ProstheticPainter extends CustomPainter {
       _drawArm(canvas, size, paint, outlinePaint, highlightPaint);
     } else if (limbType.contains('leg')) {
       _drawLeg(canvas, size, paint, outlinePaint, highlightPaint);
+    } else {
+      // Generic prosthetic representation
+      _drawGenericProsthetic(canvas, size, paint, outlinePaint, highlightPaint);
     }
+  }
+
+  void _drawGenericProsthetic(Canvas canvas, Size size, Paint paint,
+      Paint outlinePaint, Paint highlightPaint) {
+    // Draw a basic cylindrical shape
+    final path = Path();
+
+    // Main cylinder body
+    path.addRRect(RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width * 0.25, size.height * 0.1, size.width * 0.5,
+          size.height * 0.8),
+      Radius.circular(size.width * 0.25),
+    ));
+
+    // Draw the shape
+    canvas.drawPath(path, paint);
+    canvas.drawPath(path, outlinePaint);
+
+    // Add details
+    final detailPath = Path();
+
+    // Add connector rings
+    detailPath.addOval(Rect.fromCircle(
+      center: Offset(size.width * 0.5, size.height * 0.2),
+      radius: size.width * 0.2,
+    ));
+
+    detailPath.addOval(Rect.fromCircle(
+      center: Offset(size.width * 0.5, size.height * 0.5),
+      radius: size.width * 0.2,
+    ));
+
+    detailPath.addOval(Rect.fromCircle(
+      center: Offset(size.width * 0.5, size.height * 0.8),
+      radius: size.width * 0.2,
+    ));
+
+    canvas.drawPath(detailPath, highlightPaint);
+
+    // Add text to indicate it's a prosthetic
+    final textStyle = TextStyle(
+      color: paint.color,
+      fontSize: size.width * 0.1,
+      fontWeight: FontWeight.bold,
+    );
+
+    final textSpan = TextSpan(
+      text: 'PROSTHETIC',
+      style: textStyle,
+    );
+
+    final textPainter = TextPainter(
+      text: textSpan,
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+    );
+
+    textPainter.layout(
+      minWidth: size.width * 0.8,
+      maxWidth: size.width * 0.8,
+    );
+
+    textPainter.paint(
+      canvas,
+      Offset(size.width * 0.1, size.height * 0.45),
+    );
   }
 
   void _drawHand(Canvas canvas, Size size, Paint paint, Paint outlinePaint,
@@ -1145,7 +1270,7 @@ class _ProstheticPainter extends CustomPainter {
     final elbowCenter = Offset(size.width * 0.5, size.height * 0.45);
     path.addOval(Rect.fromCircle(
       center: elbowCenter,
-      radius: size.width * 0.12,
+      radius: size.width * 0.15,
     ));
 
     // Forearm section
