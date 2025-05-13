@@ -160,13 +160,14 @@ else:
         
         # Prepare assembly data for the script
         assembly_data = []
-        for part in assembly_parts:
+        print("Assembly Parts: ", assembly_parts)
+        for part in json.loads(assembly_parts):
             print("This is part: ", part)
             assembly_data.append({
-                'file_path': part.part.file_path,  # Changed to access the part relationship
-                'position': part.position,
-                'rotation': part.rotation,
-                'scale': part.scale
+                'file_path': part["file_path"],  # Changed to access the part relationship
+                'position': part["position"],
+                'rotation': part["rotation"],
+                'scale': part["scale"]
             })
         
         assembly_json = json.dumps(assembly_data)
