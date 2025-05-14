@@ -30,7 +30,7 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
   Size? _imageSize;
 
   // Update this to your computer's IP address and port
-  final String backendUrl = 'http://192.168.98.208:8000/analyze/image';
+  final String backendUrl = 'http://192.168.131.208:8000/analyze/image';
 
   @override
   void initState() {
@@ -419,18 +419,19 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
                                 ],
                               ),
 
+                            // Updated measurements for hands
                             _buildMeasurementRow(
-                              'Length',
+                              'Hand Length',
                               '${measurements['recommended_size']['length'].toStringAsFixed(1)} cm',
-                              Icons.height,
+                              Icons.straighten,
                             ),
                             _buildMeasurementRow(
-                              'Width',
+                              'Hand Width',
                               '${measurements['recommended_size']['width'].toStringAsFixed(1)} cm',
                               Icons.width_normal,
                             ),
                             _buildMeasurementRow(
-                              'Circumference',
+                              'Wrist Circumference',
                               '${measurements['recommended_size']['circumference'].toStringAsFixed(1)} cm',
                               Icons.radio_button_unchecked,
                             ),
@@ -448,13 +449,13 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
                               ),
                               SizedBox(height: 8),
                               _buildMeasurementRow(
-                                'Hip-Knee Asymmetry',
-                                '${(measurements['asymmetry_data']['hip_knee_asymmetry'] * 100).toStringAsFixed(1)}%',
+                                'Shoulder-Elbow Asymmetry',
+                                '${(measurements['asymmetry_data']['shoulder_elbow_asymmetry'] * 100).toStringAsFixed(1)}%',
                                 Icons.compare_arrows,
                               ),
                               _buildMeasurementRow(
-                                'Knee-Ankle Asymmetry',
-                                '${(measurements['asymmetry_data']['knee_ankle_asymmetry'] * 100).toStringAsFixed(1)}%',
+                                'Elbow-Wrist Asymmetry',
+                                '${(measurements['asymmetry_data']['elbow_wrist_asymmetry'] * 100).toStringAsFixed(1)}%',
                                 Icons.compare_arrows,
                               ),
                             ],
@@ -469,13 +470,15 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
                                 ),
                               ),
                               SizedBox(height: 8),
-                              ...List.generate(
-                                measurements['distances'].length,
-                                (index) => _buildMeasurementRow(
-                                  'Distance ${index + 1}',
-                                  '${measurements['distances'][index].toStringAsFixed(1)} cm',
-                                  Icons.straighten,
-                                ),
+                              _buildMeasurementRow(
+                                'Shoulder to Elbow',
+                                '${measurements['distances'][0].toStringAsFixed(1)} cm',
+                                Icons.straighten,
+                              ),
+                              _buildMeasurementRow(
+                                'Elbow to Wrist',
+                                '${measurements['distances'][1].toStringAsFixed(1)} cm',
+                                Icons.straighten,
                               ),
                             ],
                           ],
@@ -517,16 +520,16 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
     try {
       final config = ProstheticConfig(
         id: DateTime.now().millisecondsSinceEpoch.toString(),
-        length: measurements['recommended_size']['length'] ?? 50.0,
-        width: measurements['recommended_size']['width'] ?? 10.0,
+        length: measurements['recommended_size']['length'] ?? 18.0,
+        width: measurements['recommended_size']['width'] ?? 8.0,
         circumferenceTop:
-            measurements['recommended_size']['circumference'] ?? 30.0,
+            measurements['recommended_size']['circumference'] ?? 16.0,
         circumferenceBottom:
-            (measurements['recommended_size']['circumference'] ?? 30.0) * 0.8,
-        kneeFlexion: 0.0, // Default value since it's not measured
+            (measurements['recommended_size']['circumference'] ?? 16.0) * 0.9,
+        kneeFlexion: 0.0, // Default value since it's not applicable for hands
         color: Colors.grey[600]!,
         material: 'Titanium',
-        modelPath: 'assets/prosthetic_leg.obj',
+        modelPath: 'assets/cyborg.glb', // Hand model path
       );
 
       final prefs = await SharedPreferences.getInstance();
@@ -578,8 +581,8 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
               SizedBox(height: 16),
               ListTile(
                 leading: Icon(Icons.accessibility_new),
-                title: Text('Align with Guide'),
-                subtitle: Text('Match your position to the outline'),
+                title: Text('Show Both Arms'),
+                subtitle: Text('Make sure both arms are visible in the frame'),
               ),
               ListTile(
                 leading: Icon(Icons.wb_sunny),
@@ -589,7 +592,7 @@ class _AutoMeasureScreenState extends State<AutoMeasureScreen>
               ListTile(
                 leading: Icon(Icons.person),
                 title: Text('Clear View'),
-                subtitle: Text('Keep arms slightly away from body'),
+                subtitle: Text('Stand facing the camera with arms visible'),
               ),
               ListTile(
                 leading: Icon(Icons.contrast),

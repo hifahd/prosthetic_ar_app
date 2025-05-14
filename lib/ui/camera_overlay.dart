@@ -42,8 +42,31 @@ class CameraOverlay extends CustomPainter {
       paint,
     );
 
-    // Draw body outline guidance
-    final bodyPath = Path();
+    // Draw arm positioning guides
+    final armGuidePaint = Paint()
+      ..color = Colors.green.withOpacity(0.5)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.0;
+
+    // Left arm guide
+    final leftArmPath = Path();
+    leftArmPath.moveTo(
+        centerX - size.width * 0.15, size.height * 0.3); // Left shoulder
+    leftArmPath.lineTo(
+        centerX - size.width * 0.25, size.height * 0.5); // Left elbow
+    leftArmPath.lineTo(
+        centerX - size.width * 0.35, size.height * 0.7); // Left wrist
+    canvas.drawPath(leftArmPath, armGuidePaint);
+
+    // Right arm guide
+    final rightArmPath = Path();
+    rightArmPath.moveTo(
+        centerX + size.width * 0.15, size.height * 0.3); // Right shoulder
+    rightArmPath.lineTo(
+        centerX + size.width * 0.25, size.height * 0.5); // Right elbow
+    rightArmPath.lineTo(
+        centerX + size.width * 0.35, size.height * 0.7); // Right wrist
+    canvas.drawPath(rightArmPath, armGuidePaint);
 
     // Head circle
     canvas.drawCircle(
@@ -52,16 +75,17 @@ class CameraOverlay extends CustomPainter {
       paint,
     );
 
-    // Body silhouette guidance
+    // Body outline
+    final bodyPath = Path();
     bodyPath.moveTo(
-        centerX - size.width * 0.1, size.height * 0.25); // Left shoulder
+        centerX - size.width * 0.15, size.height * 0.3); // Left shoulder
     bodyPath.lineTo(
-        centerX + size.width * 0.1, size.height * 0.25); // Right shoulder
+        centerX + size.width * 0.15, size.height * 0.3); // Right shoulder
     bodyPath.lineTo(
-        centerX + size.width * 0.12, size.height * 0.7); // Right hip
-    bodyPath.lineTo(centerX - size.width * 0.12, size.height * 0.7); // Left hip
+        centerX + size.width * 0.1, size.height * 0.6); // Right torso
+    bodyPath.lineTo(
+        centerX - size.width * 0.1, size.height * 0.6); // Left torso
     bodyPath.close();
-
     canvas.drawPath(bodyPath, paint);
 
     // Draw detected body points if available
@@ -84,7 +108,7 @@ class CameraOverlay extends CustomPainter {
     // Draw instruction text
     final textSpan = TextSpan(
       text: anchorPosition == null
-          ? 'Align your body with the guide'
+          ? 'Align your arms with the green guides'
           : 'Prosthetic anchored',
       style: TextStyle(
         color: guideColor,
