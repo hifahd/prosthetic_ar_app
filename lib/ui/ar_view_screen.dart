@@ -21,6 +21,7 @@ class _ARViewScreenState extends State<ARViewScreen>
   bool _showInstructions = true;
   late AnimationController _controller;
   late Animation<double> _animation;
+  bool _showModelViewerAR = false;
 
   @override
   void initState() {
@@ -94,11 +95,30 @@ class _ARViewScreenState extends State<ARViewScreen>
     );
   }
 
-  Widget _buildModelViewer({required String src}) {
+  void _startModelViewerAR() {
+    if (_selectedConfig == null) {
+      _showErrorSnackBar('Please select a configuration first');
+      return;
+    }
+
+    setState(() {
+      _showModelViewerAR = true;
+    });
+  }
+
+  void _closeModelViewerAR() {
+    setState(() {
+      _showModelViewerAR = false;
+    });
+  }
+
+  Widget _buildModelViewer({required String src, bool enableAR = false}) {
     return ModelViewer(
       src: src,
       alt: "A 3D model",
-      ar: false,
+      ar: enableAR,
+      arModes:
+          enableAR ? const ['scene-viewer', 'webxr', 'quick-look'] : const [],
       autoRotate: true,
       cameraControls: true,
       disableZoom: false,
@@ -164,9 +184,6 @@ class _ARViewScreenState extends State<ARViewScreen>
 
   @override
   Widget build(BuildContext context) {
-    // Get the safe area bottom padding
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
-
     return Scaffold(
       appBar: AppBar(
         title: Text('AR Visualization'),
@@ -184,281 +201,345 @@ class _ARViewScreenState extends State<ARViewScreen>
         ],
       ),
       extendBodyBehindAppBar: false,
-      body: Column(
+      body: Stack(
         children: [
-          // Main content area (AR viewer)
-          Expanded(
-            child: Stack(
-              children: [
-                _selectedConfig == null
-                    ? _buildModelViewer(src: 'assets/cyborg.glb')
-                    : _buildModelViewer(src: _selectedConfig!.modelPath),
+          // Main content
+          Column(
+            children: [
+              // Main content area (AR viewer)
+              Expanded(
+                child: Stack(
+                  children: [
+                    // ModelViewer AR overlay (full screen)
+                    if (_showModelViewerAR && _selectedConfig != null)
+                      Positioned.fill(
+                        child: Container(
+                          color: Colors.black,
+                          child: Stack(
+                            children: [
+                              _buildModelViewer(
+                                src: _selectedConfig!.modelPath,
+                                enableAR: true,
+                              ),
+                              // Close button for ModelViewer AR
+                              Positioned(
+                                top: 16,
+                                left: 16,
+                                child: CircleAvatar(
+                                  backgroundColor: Colors.white,
+                                  child: IconButton(
+                                    icon:
+                                        Icon(Icons.close, color: Colors.black),
+                                    onPressed: _closeModelViewerAR,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
 
-                // AR Status Indicator - Only show when a model is selected
-                if (!_showInstructions && !_isLoading)
-                  Positioned(
-                    top: 16,
-                    right: 16,
-                    child: Container(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.black54,
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.view_in_ar,
-                            size: 18,
-                            color: Colors.white,
-                          ),
-                          SizedBox(width: 6),
-                          Text(
-                            _selectedConfig != null
-                                ? 'Model Ready'
-                                : 'No Model Selected',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.white,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
+                    // Default model viewer (when not in AR mode)
+                    if (!_showModelViewerAR)
+                      _selectedConfig == null
+                          ? _buildModelViewer(src: 'assets/cyborg.glb')
+                          : _buildModelViewer(src: _selectedConfig!.modelPath),
 
-                if (_isLoading)
-                  Container(
-                    color: Colors.black45,
-                    child: Center(
-                      child: CircularProgressIndicator(
-                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                      ),
-                    ),
-                  ),
-                if (_showInstructions)
-                  FadeTransition(
-                    opacity: _animation,
-                    child: Container(
-                      color: Colors.black54,
-                      child: Center(
-                        child: Card(
-                          margin: EdgeInsets.symmetric(horizontal: 32),
-                          elevation: 8,
-                          shadowColor: Colors.black38,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
+                    // AR Overlay Element - Guide Lines (removed grid and crosshair)
+                    // if (!_showModelViewerAR)
+                    //   Positioned.fill(
+                    //     child: IgnorePointer(
+                    //       child: CustomPaint(
+                    //         painter: ARGuidePainter(
+                    //           visible: !_showInstructions && _selectedConfig != null,
+                    //         ),
+                    //       ),
+                    //     ),
+                    //   ),
+
+                    if (_isLoading)
+                      Container(
+                        color: Colors.black45,
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              maxHeight:
-                                  MediaQuery.of(context).size.height * 0.8,
-                            ),
-                            child: SingleChildScrollView(
-                              child: Padding(
-                                padding: EdgeInsets.all(24),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Container(
-                                      padding: EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: AppTheme.primaryColor
-                                            .withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(50),
-                                      ),
-                                      child: Icon(
-                                        Icons.view_in_ar,
-                                        size: 36,
-                                        color: AppTheme.primaryColor,
-                                      ),
-                                    ),
-                                    SizedBox(height: 16),
-                                    Text(
-                                      'AR Instructions',
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleLarge
-                                          ?.copyWith(
-                                            fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    if (_showInstructions)
+                      FadeTransition(
+                        opacity: _animation,
+                        child: Container(
+                          color: Colors.black54,
+                          child: Center(
+                            child: Card(
+                              margin: EdgeInsets.symmetric(horizontal: 32),
+                              elevation: 8,
+                              shadowColor: Colors.black38,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                  maxHeight:
+                                      MediaQuery.of(context).size.height * 0.8,
+                                ),
+                                child: SingleChildScrollView(
+                                  child: Padding(
+                                    padding: EdgeInsets.all(24),
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Container(
+                                          padding: EdgeInsets.all(12),
+                                          decoration: BoxDecoration(
+                                            color: AppTheme.primaryColor
+                                                .withOpacity(0.1),
+                                            borderRadius:
+                                                BorderRadius.circular(50),
+                                          ),
+                                          child: Icon(
+                                            Icons.view_in_ar,
+                                            size: 36,
                                             color: AppTheme.primaryColor,
                                           ),
-                                    ),
-                                    SizedBox(height: 24),
-                                    _buildInstructionStep(
-                                      'Select Configuration',
-                                      'Choose a prosthetic configuration from the bottom panel',
-                                      Icons.settings,
-                                    ),
-                                    _buildInstructionStep(
-                                      'Start AR Mode',
-                                      'Press the Start AR button to open the camera view',
-                                      Icons.play_arrow,
-                                    ),
-                                    _buildInstructionStep(
-                                      'Place the Prosthetic',
-                                      'Tap near body joints to anchor the prosthetic. If joints aren\'t being detected, use Manual Mode.',
-                                      Icons.touch_app,
-                                    ),
-                                    _buildInstructionStep(
-                                      'Try Different Positions',
-                                      'Stand in a well-lit area with a neutral background for best results',
-                                      Icons.accessibility_new,
-                                    ),
-                                    SizedBox(height: 24),
-                                    ElevatedButton(
-                                      onPressed: () {
-                                        setState(
-                                            () => _showInstructions = false);
-                                        _controller.reverse();
-                                      },
-                                      child: Text('Got it'),
-                                      style: ElevatedButton.styleFrom(
-                                        padding: EdgeInsets.symmetric(
-                                            horizontal: 40, vertical: 12),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
                                         ),
-                                      ),
+                                        SizedBox(height: 16),
+                                        Text(
+                                          'AR Instructions',
+                                          style: Theme.of(context)
+                                              .textTheme
+                                              .titleLarge
+                                              ?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                                color: AppTheme.primaryColor,
+                                              ),
+                                        ),
+                                        SizedBox(height: 24),
+                                        _buildInstructionStep(
+                                          'Select Configuration',
+                                          'Choose a prosthetic configuration from the bottom panel',
+                                          Icons.settings,
+                                        ),
+                                        _buildInstructionStep(
+                                          'Start AR Mode',
+                                          'Press the Start AR button to open the camera view',
+                                          Icons.play_arrow,
+                                        ),
+                                        _buildInstructionStep(
+                                          'Place the Prosthetic',
+                                          'Tap near body joints to anchor the prosthetic. If joints aren\'t being detected, use Manual Mode.',
+                                          Icons.touch_app,
+                                        ),
+                                        _buildInstructionStep(
+                                          'Try Different Positions',
+                                          'Stand in a well-lit area with a neutral background for best results',
+                                          Icons.accessibility_new,
+                                        ),
+                                        SizedBox(height: 24),
+                                        ElevatedButton(
+                                          onPressed: () {
+                                            setState(() =>
+                                                _showInstructions = false);
+                                            _controller.reverse();
+                                          },
+                                          child: Text('Got it'),
+                                          style: ElevatedButton.styleFrom(
+                                            padding: EdgeInsets.symmetric(
+                                                horizontal: 40, vertical: 12),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(12),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-
-                // Start AR Button - Only show when a model is selected and instructions are dismissed
-                if (_selectedConfig != null && !_showInstructions)
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 120,
-                    child: Center(
-                      child: Container(
-                        width: MediaQuery.of(context).size.width * 0.7,
-                        child: ElevatedButton(
-                          onPressed: _startAR,
-                          child: Padding(
-                            padding: EdgeInsets.symmetric(vertical: 12),
-                            child: Text(
-                              'Start AR',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryColor,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: 4,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
-          ),
-
-          // Bottom configuration panel - Fixed height with safe area handling
-          Container(
-            // Account for bottom safe area in the height calculation
-            height: 110 + bottomPadding, // Reduced from 120 to prevent overflow
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 6,
-                  offset: Offset(0, -3),
-                ),
-              ],
-              borderRadius: BorderRadius.vertical(
-                top: Radius.circular(20),
-              ),
-            ),
-            child: Column(
-              children: [
-                // Content area
-                Padding(
-                  padding: EdgeInsets.fromLTRB(16, 8, 16, 0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Padding(
-                        padding: EdgeInsets.only(left: 8, bottom: 6),
-                        child: Text(
-                          _savedConfigs.isEmpty
-                              ? 'Create Your First Configuration'
-                              : 'Select Configuration',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w600,
-                            color: AppTheme.primaryColor,
-                          ),
-                        ),
-                      ),
-                      _savedConfigs.isEmpty && !_isLoading
-                          ? Container(
-                              width: double.infinity,
-                              child: ElevatedButton.icon(
-                                icon: Icon(Icons.add, size: 20),
-                                label: Text('Create Configuration'),
-                                onPressed: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          CustomizeProstheticScreen(),
-                                    ),
-                                  ).then((_) => _loadSavedConfigs());
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  padding: EdgeInsets.symmetric(vertical: 12),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
                                   ),
-                                  elevation: 2,
                                 ),
                               ),
-                            )
-                          : Container(
-                              height: 70,
-                              child: ListView.builder(
-                                scrollDirection: Axis.horizontal,
-                                itemCount: _savedConfigs.length,
-                                itemBuilder: (context, index) {
-                                  final config = _savedConfigs[index];
-                                  final isSelected =
-                                      _selectedConfig?.id == config.id;
-                                  return Padding(
-                                    padding: EdgeInsets.only(
-                                        right: 8), // Reduced from 12 to 8
-                                    child: _buildConfigCard(config, isSelected),
-                                  );
-                                },
+                            ),
+                          ),
+                        ),
+                      ),
+
+                    // AR Status Indicator
+                    if (!_showInstructions &&
+                        !_isLoading &&
+                        !_showModelViewerAR)
+                      Positioned(
+                        top: 16,
+                        right: 16,
+                        child: Container(
+                          padding:
+                              EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.view_in_ar,
+                                size: 18,
+                                color: Colors.white,
+                              ),
+                              SizedBox(width: 6),
+                              Text(
+                                _selectedConfig != null
+                                    ? 'Model Ready'
+                                    : 'No Model Selected',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                    // Start AR Button - Positioned on the left side
+                    if (_selectedConfig != null &&
+                        !_showInstructions &&
+                        !_showModelViewerAR)
+                      Positioned(
+                        left: 24,
+                        bottom: 140,
+                        child: Container(
+                          width: MediaQuery.of(context).size.width * 0.6,
+                          child: ElevatedButton(
+                            onPressed: _startAR,
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              child: Text(
+                                'Start AR',
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                    ],
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryColor,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              elevation: 4,
+                            ),
+                          ),
+                        ),
+                      ),
+
+                    // White AR Button at the same level on the right
+                    if (_selectedConfig != null &&
+                        !_showInstructions &&
+                        !_showModelViewerAR)
+                      Positioned(
+                        bottom: 150,
+                        right: 24,
+                        child: FloatingActionButton(
+                          onPressed: _startModelViewerAR,
+                          backgroundColor: Colors.white,
+                          shape: CircleBorder(),
+                          elevation: 8,
+                          child: Icon(
+                            Icons.view_in_ar,
+                            color: AppTheme.primaryColor,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+
+              // Bottom configuration panel
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 6,
+                      offset: Offset(0, -3),
+                    ),
+                  ],
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(20),
                   ),
                 ),
-
-                // Add SafeArea padding at the bottom
-                SizedBox(height: bottomPadding),
-              ],
-            ),
+                child: SafeArea(
+                  bottom: true,
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(16, 20, 16, 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Padding(
+                          padding: EdgeInsets.only(left: 8, bottom: 12),
+                          child: Text(
+                            _savedConfigs.isEmpty
+                                ? 'Create Your First Configuration'
+                                : 'Select Configuration',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.primaryColor,
+                            ),
+                          ),
+                        ),
+                        _savedConfigs.isEmpty && !_isLoading
+                            ? Container(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  icon: Icon(Icons.add),
+                                  label: Text('Create Configuration'),
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            CustomizeProstheticScreen(),
+                                      ),
+                                    ).then((_) => _loadSavedConfigs());
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    padding: EdgeInsets.symmetric(vertical: 14),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    elevation: 2,
+                                  ),
+                                ),
+                              )
+                            : Container(
+                                height: 100,
+                                child: ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount: _savedConfigs.length,
+                                  itemBuilder: (context, index) {
+                                    final config = _savedConfigs[index];
+                                    final isSelected =
+                                        _selectedConfig?.id == config.id;
+                                    return Padding(
+                                      padding: EdgeInsets.only(right: 12),
+                                      child:
+                                          _buildConfigCard(config, isSelected),
+                                    );
+                                  },
+                                ),
+                              ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -473,9 +554,8 @@ class _ARViewScreenState extends State<ARViewScreen>
         borderRadius: BorderRadius.circular(15),
         child: AnimatedContainer(
           duration: Duration(milliseconds: 200),
-          width: 100, // Reduced from 110 to 100 to prevent overflow
-          height: 70, // Fixed height
-          padding: EdgeInsets.all(6),
+          width: 120,
+          padding: EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: isSelected ? AppTheme.primaryColor : AppTheme.surfaceColor,
             borderRadius: BorderRadius.circular(15),
@@ -499,38 +579,38 @@ class _ARViewScreenState extends State<ARViewScreen>
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                padding: EdgeInsets.all(5),
+                padding: EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? Colors.white.withOpacity(0.2)
                       : AppTheme.primaryColor.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   Icons.view_in_ar,
                   color: isSelected ? Colors.white : AppTheme.primaryColor,
-                  size: 20,
+                  size: 26,
                 ),
               ),
-              SizedBox(height: 4),
+              SizedBox(height: 10),
               Text(
-                'Config ${_savedConfigs.indexOf(config) + 1}',
+                'Config ${config.id.substring(0, 4)}',
                 style: TextStyle(
                   color: isSelected ? Colors.white : AppTheme.textColor,
                   fontWeight: FontWeight.bold,
-                  fontSize: 11,
+                  fontSize: 14,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              SizedBox(height: 1),
+              SizedBox(height: 4),
               Text(
-                'Age: ${config.patientAge}',
+                '${config.length.toStringAsFixed(1)}cm',
                 style: TextStyle(
                   color: isSelected
                       ? Colors.white.withOpacity(0.8)
                       : AppTheme.subtitleColor,
-                  fontSize: 9,
+                  fontSize: 12,
                 ),
               ),
             ],
@@ -617,4 +697,102 @@ class _ARViewScreenState extends State<ARViewScreen>
       ),
     );
   }
+}
+
+// AR Guide Painter for visual guidelines
+class ARGuidePainter extends CustomPainter {
+  final bool visible;
+
+  ARGuidePainter({required this.visible});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (!visible) return;
+
+    final paint = Paint()
+      ..color = Colors.white.withOpacity(0.4)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+
+    // Draw grid lines
+    final gridSpacing = 30.0;
+    final centerX = size.width / 2;
+    final centerY = size.height / 2;
+
+    // Horizontal grid lines
+    for (double y = 0; y < size.height; y += gridSpacing) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+
+    // Vertical grid lines
+    for (double x = 0; x < size.width; x += gridSpacing) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+
+    // Draw center crosshair
+    final crossPaint = Paint()
+      ..color = Colors.blue.withOpacity(0.6)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+
+    final crossSize = 30.0;
+
+    // Horizontal line
+    canvas.drawLine(
+      Offset(centerX - crossSize, centerY),
+      Offset(centerX + crossSize, centerY),
+      crossPaint,
+    );
+
+    // Vertical line
+    canvas.drawLine(
+      Offset(centerX, centerY - crossSize),
+      Offset(centerX, centerY + crossSize),
+      crossPaint,
+    );
+
+    // Draw center circle
+    canvas.drawCircle(
+      Offset(centerX, centerY),
+      10.0,
+      Paint()
+        ..color = Colors.blue.withOpacity(0.3)
+        ..style = PaintingStyle.fill,
+    );
+
+    // Draw tap hint text
+    final textSpan = TextSpan(
+      text: "Tap to place model",
+      style: TextStyle(
+        color: Colors.white,
+        fontSize: 14,
+        fontWeight: FontWeight.bold,
+        shadows: [
+          Shadow(
+            offset: Offset(1, 1),
+            blurRadius: 3,
+            color: Colors.black45,
+          ),
+        ],
+      ),
+    );
+
+    final textPainter = TextPainter(
+      text: textSpan,
+      textDirection: TextDirection.ltr,
+      textAlign: TextAlign.center,
+    );
+
+    textPainter.layout();
+    textPainter.paint(
+      canvas,
+      Offset(
+        centerX - textPainter.width / 2,
+        centerY + crossSize + 10,
+      ),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
