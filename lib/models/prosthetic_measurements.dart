@@ -4,7 +4,6 @@ class ProstheticMeasurements {
   double circumferenceTop;
   double circumferenceBottom;
   double kneeFlexion;
-  Color mainColor;
   String material;
 
   ProstheticMeasurements({
@@ -13,7 +12,6 @@ class ProstheticMeasurements {
     this.circumferenceTop = 30,
     this.circumferenceBottom = 25,
     this.kneeFlexion = 0,
-    this.mainColor = const Color(0xFF9E9E9E),
     this.material = 'Titanium',
   });
 
@@ -23,7 +21,6 @@ class ProstheticMeasurements {
         'circumferenceTop': circumferenceTop,
         'circumferenceBottom': circumferenceBottom,
         'kneeFlexion': kneeFlexion,
-        'mainColor': mainColor.value,
         'material': material,
       };
 
@@ -34,7 +31,6 @@ class ProstheticMeasurements {
       circumferenceTop: json['circumferenceTop']?.toDouble() ?? 30,
       circumferenceBottom: json['circumferenceBottom']?.toDouble() ?? 25,
       kneeFlexion: json['kneeFlexion']?.toDouble() ?? 0,
-      mainColor: Color(json['mainColor'] ?? 0xFF9E9E9E),
       material: json['material'] ?? 'Titanium',
     );
   }
